@@ -81,6 +81,9 @@ for idx in "${gpu_dependencies[@]}"; do
         fi
     fi
 done
+
+sudo apt --fix-broken install -y > /dev/null
+
     # Driver
       ## GPU Driver Version
 mess_inf "iGPU/dGPU Driver"    
@@ -156,6 +159,8 @@ for idx in "${npu_dependencies[@]}"; do
         fi
     fi
 done
+
+sudo apt --fix-broken install -y > /dev/null
 
     # NPU Driver by OS version
 if [[ -d "NPU" ]]; then
