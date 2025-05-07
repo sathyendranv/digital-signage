@@ -179,31 +179,64 @@ e2e() {
 
     #Test MQTT
     mess_inf "Triggering the MQTT pipeline with default video"
-   	curl localhost:8080/pipelines/user_defined_pipelines/pallet_defect_detection -X POST -H 'Content-Type: application/json' -d '{
-		"source": {
-			"uri": "file:///home/pipeline-server/resources/videos/classroom.avi",
-			"type": "uri"
-		},
-		"destination": {
-			"metadata": {
-				"type": "mqtt",
-				"publish_frame": false,
-				"topic": "topic_od_mjd",
-				"host":"mqtt:1883",
-				"mqtt-client-id": "gva-meta-publish"
-			},
-			"frame": {
-				"type": "rtsp",
-				"path": "classroom-video-streaming"
-			}
-		},
-		"parameters": {
-			"detection-properties": {
-				"model": "/home/pipeline-server/yolo_models/yolo11s/FP32/yolo11s.xml",
-				"device": "CPU"
-			}
-		}
-	}'
+
+    if [[ "$VIDEO" == "classroom" ]]; then
+        curl localhost:8080/pipelines/user_defined_pipelines/pallet_defect_detection -X POST -H 'Content-Type: application/json' -d '{
+            "source": {
+                "uri": "file:///home/pipeline-server/resources/videos/classroom.avi",
+                "type": "uri"
+            },
+            "destination": {
+                "metadata": {
+                    "type": "mqtt",
+                    "publish_frame": false,
+                    "topic": "topic_od_mjd",
+                    "host":"mqtt:1883",
+                    "mqtt-client-id": "gva-meta-publish"
+                },
+                "frame": {
+                    "type": "rtsp",
+                    "path": "sample-video-streaming"
+                }
+            },
+            "parameters": {
+                "detection-properties": {
+                    "model": "/home/pipeline-server/yolo_models/yolo11s/FP32/yolo11s.xml",
+                    "device": "CPU"
+                }
+            }
+        }'
+    elif [[ "$VIDEO" == "items" ]]; then
+        curl localhost:8080/pipelines/user_defined_pipelines/pallet_defect_detection -X POST -H 'Content-Type: application/json' -d '{
+            "source": {
+                "uri": "file:///home/pipeline-server/resources/externalvideos/items.mp4",
+                "type": "uri"
+            },
+            "destination": {
+                "metadata": {
+                    "type": "mqtt",
+                    "publish_frame": false,
+                    "topic": "topic_od_mjd",
+                    "host":"mqtt:1883",
+                    "mqtt-client-id": "gva-meta-publish"
+                },
+                "frame": {
+                    "type": "rtsp",
+                    "path": "sample-video-streaming"
+                }
+            },
+            "parameters": {
+                "detection-properties": {
+                    "model": "/home/pipeline-server/yolo_models/yolo11s/FP32/yolo11s.xml",
+                    "device": "CPU"
+                }
+            }
+        }'
+    else
+        mess_war "The video option is not recognized."
+        help
+        exit 1
+    fi
 
     mess_inf "Pipeline status: "
     curl --location -X GET http://localhost:8080/pipelines/status
@@ -222,20 +255,27 @@ e2e() {
 
 help() {
     mess_inf "Usage: "
-    mess_op1 "\t./runPID.sh [start | stop | check | e2e | help]"
+    mess_op1 "\t./runPID.sh [start | stop | check | e2e [classroom|items] | help]"
     mess_op1 "\nOptions:"
     mess_op2 "\tstart: " "Start the PID containers."
     mess_op2 "\tstop: " "Stop the PID containers."
     mess_op2 "\tcheck: " "It verifies the docker installation and installed drivers."
-    mess_op2 "\te2e: " "It triggers a pipeline using Yolo v11 for detection and consumes it through MQTT messages."    
+    mess_op2 "\te2e [classroom|items]: " "It triggers a pipeline using Yolo v11 for detection and consumes it through MQTT."    
     mess_op2 "\thelp: " "Show this help message."
 }
 
 # Actions
 ACTION="up"
+VIDEO="classroom"
 
 if [[ $1 ]];    then
     ACTION=$1
+fi
+
+if [[ -n $2 ]];    then
+    VIDEO=$2
+else
+    VIDEO="classroom"
 fi
 
 case "$ACTION" in
@@ -248,8 +288,14 @@ case "$ACTION" in
     "check")
         check
     ;;
-    "e2e")
-        e2e
+    "e2e")    
+        if [[ "$VIDEO" == "classroom" || "$VIDEO"  == "items" ]];    then
+            e2e
+        else
+            mess_war "The video option is not recognized."
+            help
+            exit 1
+        fi
     ;;
     "help")
         help
