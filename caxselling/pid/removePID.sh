@@ -51,6 +51,19 @@ else
     exit 1
 fi
 
+mess_war "This action will remove drivers, containers, and their Docker images from your system. It keeps dependencies."
+read -p "Are you sure to continue? (y/n) " -n 1 -r
+echo    # (optional) move to a new line
+if [[ $REPLY =~ ^[Yy]$ ]]
+then
+  # commands if yes
+  mess_ok2 "Delete Procedure: " "Confirmed"
+else
+  # commands if no
+  mess_wa2 "Delete Procedure: " "Cancelled"
+  exit 1
+fi
+
 # Checking Installation Control Variable
 if [[ -v UBUNTU2404 ]]; then
     mess_inf "Proceeding with the driver verification and removal on $PRETTY_NAME."
