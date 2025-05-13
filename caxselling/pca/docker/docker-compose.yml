@@ -5,8 +5,42 @@
 #
 
 services:
+  db:
+    container_name: pca-server-postgres
+    image: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /data/postgres
+      POSTGRES_DB: itemtrxs
+    volumes:
+      - pgdata:/data/postgres
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    networks: #Review because it needs to be external to sync with the remaining ones
+      - app_network
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pca-server-pgadmin4
+    restart: always
+    ports:
+      - "${PGADMIN_WEBPORT}:80"
+    networks: #Review because it needs to be external to sync with the remaining ones
+      - app_network
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      - ./servers.json:/pgadmin4/servers.json
   pca-server:
-    #image: intel/pca-server:0.0.1
+    image: pca-server-restx:0.0.1
     hostname: pca-server
     container_name: pca-server
     read_only: true
@@ -16,10 +50,9 @@ services:
       context: ..
       target: pca-server
       args:
-        UID: "1999"
-        USER: "intelmicroserviceuser"
+        UID: ${UID} 
+        USER: ${PCA_SERVER_USER} 
         BASE_IMAGE: "ubuntu:22.04"
-        # Download sources for GPL/LGPL/AGPL binary distributed components (yes/no)
         no_proxy: ${no_proxy}
         http_proxy: ${http_proxy}
         https_proxy: ${https_proxy}
@@ -27,7 +60,7 @@ services:
     tty: true
     entrypoint: ["./run.sh"]
     ports:
-      - '5002:5002'
+      - '${PCA_PORT}:5002'
     networks: #Review because it needs to be external to sync with the remaining ones
       - app_network
     environment:
@@ -58,9 +91,6 @@ services:
       - 'a 189:* rwm'
     devices:
       # Following devices under /dev filesystem will be needed based on usecase
-      # dri - GPU
-      # USB camera devices
-      # Selective mount can be done for deployment as mounting whole /dev is not recommended
       - "/dev:/dev"
 
 networks:
@@ -73,3 +103,5 @@ volumes:
     driver_opts:
       type: tmpfs
       device: tmpfs
+  pgdata:
+  pgadmin-data:
