@@ -1,5 +1,9 @@
+#Flask
 from flask import Flask
+#API
 from server.apis import api
+
+__version__ = "0.1.0"
 
 class PcaServer:
     def __init__(self):

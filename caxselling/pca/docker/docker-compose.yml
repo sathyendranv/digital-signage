@@ -73,6 +73,10 @@ services:
       - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
       - REST_SERVER_PORT=5002
       - SERVICE_NAME=pca-server
+      - POSTGRES_DB=itemtrxs
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_HOST=pca-server-postgres
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
       - "/run/udev:/run/udev:ro"

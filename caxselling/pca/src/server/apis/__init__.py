@@ -2,6 +2,7 @@ from flask_restx import Api
 
 from .status import api as pca_status
 from .version import api as pca_version
+from .mqttlistener import api as pca_mqttlistener
 
 #API DOC
 api = Api(
@@ -14,3 +15,4 @@ api = Api(
 # Add Namespaces into the API with URL prefixes
 api.add_namespace(pca_status, path='/pca') 
 api.add_namespace(pca_version, path='/pca')
+api.add_namespace(pca_mqttlistener, path='/pca')
