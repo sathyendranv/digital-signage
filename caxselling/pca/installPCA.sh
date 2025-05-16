@@ -32,6 +32,13 @@ else
     exit 1
 fi
 
+if checkDockerNetwork; then
+    mess_oki "Docker network is available."
+else
+    mess_err "Docker network is not available. Please check your Docker installation."
+    exit 1
+fi
+
 # Pull and create the docker image
 mess_inf "Pulling the PCA Docker image ..."
 readarray -t theimages <<< $(fgrep image: ./docker/docker-compose.yml | sed 's/^.*: //')
@@ -96,6 +103,12 @@ if test -e ./docker/servers.json; then
 
         if sudo chown 5050:5050 ./docker/servers.json; then
             mess_ok2 "\tPGAdmin Server.json file: " "Permissions set"
+            if sudo chown -R 5050:5050 ./docker/sharedata; then
+                mess_ok2 "\tPGAdmin sharedata folder: " "Permissions set"
+            else
+                mess_er2 "\tPGAdmin sharedata folder: " "Failed to set permissions"
+                exit 1
+            fi
         else
             mess_er2 "\tPGAdmin Server.json file: " "Failed to set permissions"
             exit 1

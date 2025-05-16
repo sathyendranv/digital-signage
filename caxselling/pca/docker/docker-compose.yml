@@ -39,6 +39,7 @@ services:
     volumes:
       - pgadmin-data:/var/lib/pgadmin
       - ./servers.json:/pgadmin4/servers.json
+      - ./sharedata:${PGADMIN_DEFAUL_DIR}/sharedata
   pca-server:
     image: pca-server-restx:0.0.1
     hostname: pca-server
@@ -63,6 +64,8 @@ services:
       - '${PCA_PORT}:5002'
     networks: #Review because it needs to be external to sync with the remaining ones
       - app_network
+    depends_on:
+      - db
     environment:
       - no_proxy=$no_proxy
       - http_proxy=$http_proxy
@@ -77,6 +80,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=pca-server-postgres
+      - PCA_SAMPLEDATA=${PCA_SAMPLEDATA}
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=1999,gid=1999
       - "/run/udev:/run/udev:ro"
@@ -99,7 +103,7 @@ services:
 
 networks:
   app_network:
-    driver: bridge
+    external: true
 
 volumes:
   vol_pipeline_root:

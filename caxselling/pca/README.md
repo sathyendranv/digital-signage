@@ -15,3 +15,6 @@ To be completed.
     1. docker compose -f ./docker/docker-compose.yml up -d 
 1. docker compose -f ./docker/docker-compose.yml down
 docker 
+
+
+Classes: https://github.com/ultralytics/ultralytics/blob/main/ultralytics/cfg/datasets/coco.yaml

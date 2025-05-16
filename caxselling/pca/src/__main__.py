@@ -7,7 +7,7 @@ import daal4py as d4p
 #Server
 sys.path.append('./src')
 from server.pca_server import PcaServer
-from database.db_manager import createTrxTables
+from database.db_manager import createTrxTables, populateSampleData
 
 # MQTT
 # setup topics to listen and insert in trx (insert)
@@ -22,6 +22,7 @@ if __name__ == '__main__':
 
     ## PG Database
     createTrxTables()
+    populateSampleData()
 
     pcaserver = PcaServer()
     #Registering the clean up function    

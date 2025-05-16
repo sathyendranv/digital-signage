@@ -24,6 +24,13 @@ else
     exit 1
 fi
 
+if checkDockerNetwork; then
+    mess_oki "Docker network is available."
+else
+    mess_err "Docker network is not available. Please check your Docker installation."
+    exit 1
+fi
+
 mess_inf "Verifying OS Compatibility"
 if [ -f "/etc/os-release" ]; then
   source /etc/os-release

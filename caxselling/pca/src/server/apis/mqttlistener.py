@@ -1,8 +1,9 @@
 import os
 #Flask API
 from flask_restx import Namespace, Resource, fields
-#PostgresSQL
+#PostgresSQL & MQTT
 from database.db_manager import DatabaseConnection
+from database.mqtt_manager import MqttManager
 #Logging
 import logging
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class Mqtttopic(Resource):
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(mqtttopic_sch, validate=True)
     @api.marshal_with(mqtttopic_sch)
-    def put(self):
+    def post(self):
         data = api.payload
         conn = None
         try:
@@ -73,8 +74,18 @@ class Mqtttopic(Resource):
                     return ret, 202
                 
                 curs.execute(f"INSERT INTO mqtt_topics(hostname, port, topic, message) VALUES('{phost}','{pport}','{ptopic}','');")
-                conn.commit()
-                conn.close()
+
+                # Incorporating the MQTT Client
+                mqtt_manager = MqttManager()
+                if mqtt_manager.add_client(phost, pport, ptopic):
+                    conn.commit() # Confirm the deletion
+                else:
+                    conn.rollback() # Rollback
+                    ret=Mqtttopic_sch()
+                    ret.status=f"[MQTT Add] Topic {ptopic} in the MQTT Broker: {phost}:{pport}. It was not possible to add the MQTT Client."      
+                    logger.error(ret.status)
+                    return ret, 500
+                
         except Exception as e:
             logger.error(f"Putting topic {data} for the MQTT Broker")            
             message=f"PG Exception: {str(e)}"
@@ -122,9 +133,19 @@ class Mqtttopic(Resource):
                     ret.status=message
                     return ret, 404
                 
-                curs.execute(f"DELETE FROM mqtt_topics where hostname like '{phost}' and port={pport} and topic like '{ptopic}';")
-                
-                conn.commit()
+                curs.execute(f"DELETE FROM mqtt_topics where hostname like '{phost}' and port={pport} and topic like '{ptopic}';")                
+
+                # Removing the MQTT Client
+                mqtt_manager = MqttManager()
+                if mqtt_manager.remove_client(phost, pport, ptopic):
+                    conn.commit() # Confirm the deletion
+                else:
+                    conn.rollback() # Rollback
+                    ret=Mqtttopic_sch()
+                    ret.status=f"[MQTT Delete] Topic {ptopic} in the MQTT Broker: {phost}:{pport}. It was not possible to remove the MQTT Client."      
+                    logger.error(ret.status)
+                    return ret, 500
+
         except Exception as e:
             logger.error(f"Deleting topic {data} for the MQTT Broker")
             message=f"PG Exception: {str(e)}"
@@ -137,6 +158,53 @@ class Mqtttopic(Resource):
                 conn.close()
                 
         return data, 200
+    
+    @api.doc('Update and Regenerate the In-memory MQTT client (Hard restart). Database is not affected.') 
+    @api.response(200, 'Success')
+    @api.response(404, 'Inexistent MQTT client for the mentioned MQTT broker:port and topic')
+    @api.response(500, 'Accepted but it could not be processed/stored')
+    @api.expect(mqtttopic_sch, validate=True)
+    @api.marshal_with(mqtttopic_sch)
+    def put(self):
+        data = api.payload 
+        conn = None
+        try:
+            phost=data["host"]
+            pport=data["port"]
+            ptopic=data["topic"]
+
+            mqtt_manager = MqttManager()
+            if not mqtt_manager.exist_client(phost, pport, ptopic):
+                message=f"MQTT Client {phost}:{pport} - {ptopic} does not exist"
+                ret=Mqtttopic_sch()
+                ret.status=message
+                logger.error(ret.status)
+                return ret, 404
+            
+            if mqtt_manager.regenerate_client(phost, pport, ptopic):
+                message=f"MQTT Client {phost}:{pport} - {ptopic} was regenerated"
+                ret=Mqtttopic_sch()
+                ret.status=message
+                return ret, 200
+            else:
+                message=f"MQTT Client {phost}:{pport} - {ptopic} was not regenerated"   
+                ret=Mqtttopic_sch()
+                ret.status=message
+                logger.error(ret.status)
+                return ret, 500
+                
+        except Exception as e:
+            message=f"MQTT Client {phost}:{pport} - {ptopic} was not regenerated. Error: {str(e)}"
+            logger.error(message)
+            ret=Mqtttopic_sch()
+            ret.status=message
+            return ret, 500
+        finally:
+            if conn is not None:
+                conn.close()
+                
+        return data, 200
+
     
 @api.route('/mqtt/<string:host>')
 @api.param('host','MQTT Broker Host to filter the topics')
@@ -159,6 +227,8 @@ class MqtttopicQuery(Resource):
                 ret.status=message                
                 return ret, 500
             
+            mqttmanager=MqttManager()
+            
             with conn.cursor() as curs:
                 curs.execute(f"SELECT hostname, port, topic from mqtt_topics where hostname like '{host}' order by hostname, port, topic limit 50;")
                 results = curs.fetchall()
@@ -169,7 +239,14 @@ class MqtttopicQuery(Resource):
                     data.host=str(row[0])
                     data.port=int(row[1])
                     data.topic=str(row[2])
-                    data.status=""
+
+                    if mqttmanager.exist_client(data.host, data.port, data.topic):
+                        #Get the status from the MQTT Client
+                        client= mqttmanager.get_client(data.host, data.port, data.topic)
+                        data.status=client.get_status()
+                    else:
+                        data.status=f"MQTT Client not found ({data.host}:{data.port} - {data.topic})"
+                    
                     
                     list.append(data)
 

@@ -90,7 +90,7 @@ services:
 
 networks:
   app_network:
-    driver: "bridge"
+    external: true
 
 volumes:
   vol_pipeline_root:

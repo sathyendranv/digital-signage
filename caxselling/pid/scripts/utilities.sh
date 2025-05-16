@@ -108,6 +108,24 @@ getDriverNames() {
         echo "${array_return[@]}"
 }
 
+checkDockerNetwork() {
+        mess_inf "Checking Docker network"
+        network_name="app_network"
+
+        if docker network inspect "$network_name" > /dev/null 2>&1; then                
+                mess_ok2 "Docker network $network_name: " "OK"
+                return 0
+        else
+                if docker network create "$network_name" > /dev/null 2>&1; then
+                        mess_ok2 "Docker network $network_name: " "Created"
+                        return 0
+                else
+                        mess_e2r "Docker network $network_name: " "Failed to create"
+                        return 1
+                fi
+        fi
+}
+
 declare -a essential_packages=("git" "git-lfs" "gcc" "python3-venv" "python3-dev" "ffmpeg")
 
 # GPU Drivers
