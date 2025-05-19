@@ -48,6 +48,7 @@ class Mqtttopic(Resource):
     def post(self):
         data = api.payload
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:                
@@ -88,14 +89,16 @@ class Mqtttopic(Resource):
                 
         except Exception as e:
             logger.error(f"Putting topic {data} for the MQTT Broker")            
-            message=f"PG Exception: {str(e)}"
-            logger.error(message)
-            ret=Mqtttopic_sch()
-            ret.status=message
-            return ret, 500
+            errorMessage=f"PG Exception: {str(e)}"
+            logger.error(errorMessage)
         finally:
             if conn is not None:
                 conn.close()
+
+        if errorMessage is not None:
+            ret=Mqtttopic_sch()   
+            ret.status=errorMessage
+            return ret, 500
                 
         return data, 200
     
@@ -109,6 +112,7 @@ class Mqtttopic(Resource):
         data = api.payload
 
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:
@@ -148,14 +152,16 @@ class Mqtttopic(Resource):
 
         except Exception as e:
             logger.error(f"Deleting topic {data} for the MQTT Broker")
-            message=f"PG Exception: {str(e)}"
-            logger.error(message) 
-            ret=Mqtttopic_sch()
-            ret.status=message            
-            return ret, 500
+            errorMessage=f"PG Exception: {str(e)}"
+            logger.error(errorMessage) 
         finally:
             if conn is not None:
                 conn.close()
+
+        if errorMessage is not None:
+            ret=Mqtttopic_sch()   
+            ret.status=errorMessage
+            return ret, 500
                 
         return data, 200
     
@@ -168,6 +174,7 @@ class Mqtttopic(Resource):
     def put(self):
         data = api.payload 
         conn = None
+        errorMessage = None
         try:
             phost=data["host"]
             pport=data["port"]
@@ -194,15 +201,17 @@ class Mqtttopic(Resource):
                 return ret, 500
                 
         except Exception as e:
-            message=f"MQTT Client {phost}:{pport} - {ptopic} was not regenerated. Error: {str(e)}"
-            logger.error(message)
-            ret=Mqtttopic_sch()
-            ret.status=message
-            return ret, 500
+            errorMessage=f"MQTT Client {phost}:{pport} - {ptopic} was not regenerated. Error: {str(e)}"
+            logger.error(errorMessage)
         finally:
             if conn is not None:
                 conn.close()
-                
+
+        if errorMessage is not None:
+            ret=Mqtttopic_sch()   
+            ret.status=errorMessage
+            return ret, 500
+                            
         return data, 200
 
     
@@ -218,6 +227,7 @@ class MqtttopicQuery(Resource):
         #To Do
         list=[]
         conn = None
+        errorMessage = None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:
@@ -252,14 +262,16 @@ class MqtttopicQuery(Resource):
 
         except Exception as e:
             logger.error(f"Query topics based on the host ({host}) for the MQTT Broker")            
-            message=f"PG Exception: {str(e)}"
-            logger.error(message)
-            ret=Mqtttopic_sch()
-            ret.status=message            
-            return ret, 500
+            errorMessage=f"PG Exception: {str(e)}"
+            logger.error(errorMessage)
         finally:
             if conn is not None:
                 conn.close()
+
+        if errorMessage is not None:
+            ret=Mqtttopic_sch()
+            ret.status=errorMessage            
+            return ret, 500
 
         if len(list)==0:
             ret=Mqtttopic_sch()

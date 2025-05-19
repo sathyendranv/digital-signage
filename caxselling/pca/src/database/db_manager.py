@@ -103,6 +103,135 @@ def createTrxTables():
                     CONSTRAINT FK_TRXTOPRODUCT FOREIGN KEY(IDPRODUCT) REFERENCES PRODUCTS(IDPRODUCT)
                 );            
             """)
+            logger.info(f"Creating table MQTTLabelDayProb")
+            curs.execute("""               
+                CREATE TABLE IF NOT EXISTS MQTTLabelDayProb(
+                        hostname varchar(255) not null,
+                        port integer not null,
+                        topic varchar(255) not null,
+                        label_class varchar(255) not null,
+                        label_id varchar(255) not null,
+                        dow integer not null,
+                        probability float default 0,	
+                        constraint fk_labeldayTomqtt foreign key (hostname, port, topic) references mqtt_topics (hostname, port, topic),
+                        constraint pk_MQTTLabelDayProb primary key(hostname,port,topic,label_class,dow),
+                        constraint chk_MQTTLabelDayProb_dow check (dow >=1 and dow<=7)
+                );
+            """)
+            logger.info(f"Creating table MQTTLabelDayHourProb")
+            curs.execute("""
+                CREATE TABLE IF NOT EXISTS MQTTLabelDayHourProb(
+                        hostname varchar(255) not null,
+                        port integer not null,
+                        topic varchar(255) not null,
+                        label_class varchar(255) not null,
+                        label_id varchar(255) not null,
+                        dow integer not null,
+                        hh24 integer not null,
+                        probability float default 0,	
+                        constraint fk_labeldayhourTomqtt foreign key (hostname, port, topic) references mqtt_topics (hostname, port, topic),
+                        constraint pk_MQTTLabelDayHourProb primary key(hostname,port,topic,label_class,dow,hh24),
+                        constraint chk_MQTTLabelDayHourProb_dow check (dow >=1 and dow<=7),
+                        constraint chk_MQTTLabelDayHourProb_hh24 check (hh24 >=0 and hh24<=23)
+                );
+            """)    		
+            logger.info(f"Creating function WEEKPROB_MATRIX()")
+            curs.execute("""
+                CREATE or REPLACE FUNCTION WEEKPROB_MATRIX()
+                    RETURNS boolean
+                    LANGUAGE plpgsql
+                AS $$
+                DECLARE
+                    --Variable initialization
+                    precord RECORD;
+                    
+                    total_day_items integer;
+                BEGIN
+                    -- Last 6 months transactions
+                    CREATE TEMP TABLE tmp_myview AS
+                    SELECT * FROM mqtt_topics_trxs Where created_at >= (now() - interval '6 months');
+                    
+                    --Clean any previous probabilities
+                    truncate MQTTLabelDayProb; 
+                    
+                    --1: Monday 7: Sunday (Isodow) 
+					FOR precord IN (SELECT DISTINCT hostname,port,topic,trx_dayofweek FROM tmp_myview) LOOP
+						Select into total_day_items count(*)
+						from tmp_myview
+						Where hostname = precord.hostname and
+							port = precord.port and
+							topic = precord.topic and
+							trx_dayofweek = precord.trx_dayofweek;
+						
+						if total_day_items is not null and total_day_items > 0 then
+							--There are items in this day
+							insert into MQTTLabelDayProb(hostname,port,topic,label_class,label_id,dow,probability)		
+							Select hostname,port, topic,label_class, label_id,trx_dayofweek, count(*)::float/total_day_items::float
+							from tmp_myview
+							Where hostname = precord.hostname and
+								port = precord.port and
+								topic = precord.topic and
+								trx_dayofweek = precord.trx_dayofweek
+							group by hostname,port, topic,label_class,label_id,trx_dayofweek;
+						End if;			
+					END LOOP;
+                    
+                    DROP TABLE tmp_myview;
+                    
+                    return true;
+                END;
+                $$;
+            """)
+            logger.info(f"Creating function WEEKPROB_MATRIX_HH24()")
+            curs.execute("""
+                CREATE or REPLACE FUNCTION WEEKHH24PROB_MATRIX()
+                    RETURNS boolean
+                    LANGUAGE plpgsql
+                AS $$
+                DECLARE
+                    --Variable initialization
+                    precord RECORD;
+                    
+                    total_hh24_items integer;
+                BEGIN
+                    -- Last 6 months transactions
+                    CREATE TEMP TABLE tmp_myview AS
+                    SELECT * FROM mqtt_topics_trxs Where created_at >= (now() - interval '6 months');
+                    
+                    --Clean any previous probabilities
+                    truncate MQTTLabelDayHourProb; 
+                    
+                    --1: Monday 7: Sunday (Isodow) 
+                    FOR precord IN (SELECT DISTINCT hostname,port,topic,trx_dayofweek,trx_hh24 FROM tmp_myview) LOOP
+                        Select into total_hh24_items count(*)
+                        from tmp_myview
+                        Where hostname = precord.hostname and
+                            port = precord.port and
+                            topic = precord.topic and
+                            trx_dayofweek = precord.trx_dayofweek and
+                            trx_hh24 = precord.trx_hh24;
+                        
+                        if total_hh24_items is not null and total_hh24_items > 0 then
+                            --There are items in this hh24 and day
+                            insert into MQTTLabelDayHourProb(hostname,port,topic,label_class,label_id,dow,hh24,probability)		
+                            Select hostname,port, topic,label_class, label_id,trx_dayofweek, trx_hh24, count(*)::float/total_hh24_items::float
+                            from tmp_myview
+                            Where hostname = precord.hostname and
+                                port = precord.port and
+                                topic = precord.topic and
+                                trx_dayofweek = precord.trx_dayofweek and 
+                                trx_hh24 = precord.trx_hh24
+                            group by hostname,port, topic,label_class,label_id,trx_dayofweek, trx_hh24;
+                        End if;			
+                    END LOOP;
+                    
+                    DROP TABLE tmp_myview;
+                    
+                    return true;
+                END;
+                $$;
+		    """)                         
+
 
             conn.commit()
             conn.close()

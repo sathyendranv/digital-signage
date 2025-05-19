@@ -87,6 +87,7 @@ class Products(Resource):
             return message, 204
 
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:                
@@ -133,13 +134,15 @@ class Products(Resource):
                 
         except Exception as e:
             conn.rollback()
-            message=f"Products Registration Error (Rollback): {str(e)}"
-            logger.error(message)
-            return message, 500
+            errorMessage=f"Products Registration Error (Rollback): {str(e)}"
+            logger.error(errorMessage)
         finally:
             if conn is not None:
                 conn.close()
                 
+        if errorMessage is not None:
+            return errorMessage, 500
+        
         return "Success", 200
     
     @api.doc('Delete a list of products')
@@ -156,6 +159,7 @@ class Products(Resource):
             return message, 204
 
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:                
@@ -178,13 +182,15 @@ class Products(Resource):
             conn.commit() # Confirm the deletion                
         except Exception as e:
             conn.rollback()
-            message=f"Products Delete Error (Rollback): {str(e)}"
-            logger.error(message)
-            return message, 500
+            errorMessage=f"Products Delete Error (Rollback): {str(e)}"
+            logger.error(errorMessage)
         finally:
             if conn is not None:
                 conn.close()
-                
+        
+        if errorMessage is not None:
+            return errorMessage, 500
+        
         return "Success", 200
 
 ## Products API
@@ -200,6 +206,7 @@ class ProductsQuery(Resource):
         #To Do
         list=[]
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:
@@ -228,13 +235,15 @@ class ProductsQuery(Resource):
                     list.append(data)
 
         except Exception as e:
-            message=f"Query products based on the filter: ({filtername})   Error: {str(e)}"
-            logger.error(message)
-            return list, 500
+            errorMessage=f"Query products based on the filter: ({filtername})   Error: {str(e)}"
+            logger.error(errorMessage)            
         finally:
             if conn is not None:
                 conn.close()
 
+        if errorMessage is not None:
+            return list, 500
+        
         if len(list)==0:
             return list, 404
                 
@@ -258,6 +267,7 @@ class ProductTrx(Resource):
             return message, 204
 
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:                
@@ -302,13 +312,16 @@ class ProductTrx(Resource):
                 
         except Exception as e:
             conn.rollback()
-            message=f"Products Registration Error (Rollback): {str(e)}"
-            logger.error(message)
-            return message, 500
+            errorMessage=f"Products Registration Error (Rollback): {str(e)}"
+            logger.error(errorMessage)
+
         finally:
             if conn is not None:
                 conn.close()
-                
+
+        if errorMessage is not None:
+            return errorMessage, 500
+                        
         return "Success", 200
     
     @api.doc('Delete a list of product transactions')
@@ -325,6 +338,7 @@ class ProductTrx(Resource):
             return message, 204
 
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:                
@@ -348,13 +362,16 @@ class ProductTrx(Resource):
             conn.commit() # Confirm the deletion                
         except Exception as e:
             conn.rollback()
-            message=f"Product Transactions Delete Error (Rollback): {str(e)}"
-            logger.error(message)
-            return message, 500
+            errorMessage=f"Product Transactions Delete Error (Rollback): {str(e)}"
+            logger.error(errorMessage)
+            
         finally:
             if conn is not None:
                 conn.close()
-                
+
+        if errorMessage is not None:
+            return errorMessage, 500
+            
         return "Success", 200
 
 ## Product Transactions API
@@ -370,6 +387,7 @@ class ProductTrxQuery(Resource):
         #To Do
         list=[]
         conn = None
+        errorMessage=None
         try:
             conn = DatabaseConnection.connect()            
             if conn is None:
@@ -398,13 +416,16 @@ class ProductTrxQuery(Resource):
                     list.append(data)
 
         except Exception as e:
-            message=f"Query products based on the filter: ({idtrx})   Error: {str(e)}"
-            logger.error(message)
-            return list, 500
+            errorMessage=f"Query products based on the filter: ({idtrx})   Error: {str(e)}"
+            logger.error(errorMessage)
+            
         finally:
             if conn is not None:
                 conn.close()
 
+        if errorMessage is not None:
+            return list, 500
+        
         if len(list)==0:
             return list, 404
                 
