@@ -10,19 +10,14 @@ removeImages() {
     #It verifies the container to remove from the docker-compose file. 
     readarray -t containers <<< $(fgrep image: ./docker/docker-compose.yml | sed 's/^.*: //')
     for idcontainer in "${containers[@]}"; do
-        #It verifies if the container is running
-        if sudo docker rmi -f "$idcontainer" &> /dev/null; then #> /dev/null 2>&1
-            # Check whether the image was removed           
-            if  sudo docker images | grep -q "$idcontainer" &> /dev/null; then
-                mess_er2 "\t$idcontainer: " "It could not be removed"
-                exit 99
-            else
-                mess_ok2 "\t$idcontainer: " "Removed"
-            fi            
+        image_ids=$(sudo docker images "$idcontainer" --format "{{.ID}}")
+
+        if [ -n "$image_ids" ]; then
+            echo "$image_ids" | xargs -r sudo docker rmi -f > /dev/null 2>&1
+            mess_ok2 "$idcontainer: " "Removed (all tags)"
         else
-            #If not present, the image was removed
-            mess_ok2 "$idcontainer: " "Removed"
-        fi
+            mess_ok2 "$idcontainer: " "No images found"
+        fi        
     done    
 }
 

@@ -28,7 +28,7 @@ class Mqtttopic_sch(object):
 @api.route('/mqtt/',
            doc={"description": "Manage topics to listen given a MQTT broker."})
 class Mqtttopic(Resource):
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. Topic Added and MQTT Client created.')
     @api.response(202, 'Accepted request but existent')
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(mqtttopic_sch, validate=True, description="Host:port and topic to listen in the MQTT Broker.")
@@ -91,7 +91,7 @@ class Mqtttopic(Resource):
         return data, 200
     
     @api.doc('It removes the mentioned topic for the host:port MQTT Broker. PCA will not listen to it anymore')
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. Topic Deleted and MQTT Client removed.')
     @api.response(404, 'No Topics for the mentioned MQTT broker:port and topic')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
     @api.expect(mqtttopic_sch, validate=True, description="Host:port and topic to delete from the listening list in the MQTT Broker.")
@@ -154,7 +154,7 @@ class Mqtttopic(Resource):
         return data, 200
     
     @api.doc('Update and Regenerate the In-memory MQTT client (Hard restart). Database is not affected.') 
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. Topic Updated and In-Memory MQTT Client regenerated (Hard restart).')
     @api.response(404, 'Inexistent MQTT client for the mentioned MQTT broker:port and topic')
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(mqtttopic_sch, validate=True, description="Host:port and topic to update and regenerate the In-memory MQTT client (hard restart) from the listening list in the MQTT Broker.")

@@ -2,17 +2,22 @@
 from flask import Flask
 # API
 from server.apis import api
+# Database
 from database.mqtt_manager import MqttManager
+from database.version import Version_sch
+# Association Rules
 from server.arules.association_rules import ARDiscoverer
+# Dependencies
+from database.version import PcaServerMetadata
 # Logging
+from datetime import datetime
 import logging
 logger = logging.getLogger(__name__)
 
-__version__ = "0.1.0"
-
 class PcaServer:
+
     def __init__(self):
-        logger.info(f"Starting PCA Server version {__version__}")
+        logger.info(f"Starting PCA Server version {PcaServerMetadata.version()}")
         self.app = Flask(__name__) # Defining 
         logger.info(f"Flask App initialized")
         self.mqttmanager = MqttManager() # Creating MQTT Manager

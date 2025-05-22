@@ -400,7 +400,7 @@ def createTrxTables():
                 END;
                 $$;
 		    """)                         
-
+            
             logger.info(f"Creating table ARules")
             curs.execute("""
                 CREATE TABLE IF NOT EXISTS ARules(

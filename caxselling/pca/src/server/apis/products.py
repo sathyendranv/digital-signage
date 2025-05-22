@@ -82,7 +82,7 @@ class Producttrx_sch(object):
 @api.route('/prd/',
            doc={"description":"Operations related to Products (Definition and transactions)"})
 class Products(Resource):
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. The product list has been registered (or updated).')
     @api.response(204, 'No Products to register')
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(products_list_sch, validate=True, description="List of products to register")
@@ -153,7 +153,7 @@ class Products(Resource):
         
         return "Success", 200
     
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. The product list has been deleted.')
     @api.response(204, 'No Products to delete')
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(products_list_sch, validate=True, description="List of products to delete")
@@ -261,7 +261,7 @@ class ProductsQuery(Resource):
 @api.route('/prd/trx/', 
            doc={"description":"Operations related to Product Transactions"})
 class ProductTrx(Resource):
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. The list of product transactions has been registered (or updated)')
     @api.response(204, 'No transactions to register')
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(productstrx_list_sch, validate=True, description="List of product transactions to register")
@@ -331,7 +331,7 @@ class ProductTrx(Resource):
                         
         return "Success", 200
     
-    @api.response(200, 'Success')
+    @api.response(200, 'Success. The list of product transactions has been deleted')
     @api.response(204, 'No Product transactions to delete')
     @api.response(500, 'Accepted but it could not be processed/stored')
     @api.expect(productstrx_list_sch, validate=True, description="List of product transactions to delete")
@@ -436,3 +436,71 @@ class ProductTrxQuery(Resource):
             return list, 404
                 
         return list, 200
+
+product_ids_model = api.model('Product_IDs', {
+    'Product_IDs': fields.List(fields.Integer, required=True, description='List of Product IDs', example="[1,2,3]"),
+})
+
+@api.route('/prd/getproduct/',
+           doc={"description": "It returns the product information based on the list of provided IDs."})
+class ARDiscoverConsequentFor(Resource):
+    @api.expect(product_ids_model, validate=True, description="List of Product IDs", example="[1,2,3]")
+    @api.response(200, 'Success')
+    @api.response(204, 'Wrong parameter values')
+    @api.response(500, 'Accepted but it could not be processed/recovered')    
+    @api.marshal_list_with(product_sch)    
+    def post(self):
+        data=api.payload
+        IDs = data.get('Product_IDs', [])
+
+        if not IDs or not all(isinstance(i, int) for i in IDs):
+            return "Incorrect Product IDs", 204
+
+        conn=None
+        errorMessage=None
+        rdos=[]
+        try:
+            conn = DatabaseConnection.connect()
+            if conn is None:
+                message=f"PG Connection Error"
+                logger.error(message)
+                return message, 500
+            
+            with conn.cursor() as curs:
+                prodlist=','.join(map(str, IDs))
+                query=f"SELECT idproduct, pname, pdescription, price FROM products Where idproduct in ({prodlist})"
+                curs.execute(query)
+
+                results = curs.fetchall()
+                if len(results) != len(IDs):
+                    message=f"Product IDs not found in the database"
+                    logger.error(message)
+                    return message, 204
+                
+                while results:
+                    row = results.pop(0)
+                    data=Product_sch()
+                    data.idproduct=int(row[0])
+                    data.pname=str(row[1])
+                    if row[2] is None:
+                        data.pdescription=None
+                    else:
+                        data.pdescription=str(row[2])
+                    if row[3] is None:
+                        data.price=None
+                    else:
+                        data.price=float(row[3])                   
+                    
+                    rdos.append(data)
+
+        except Exception as e:
+            errorMessage=f"PG Connection Error: {str(e)}"
+            logger.error(errorMessage)
+        finally:
+            if conn is not None:
+                conn.close()
+        
+        if errorMessage is not None:
+            return errorMessage, 500
+        
+        return rdos,200

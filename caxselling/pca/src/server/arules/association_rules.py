@@ -123,7 +123,7 @@ class ARDiscoverer():
             raise None
 
     
-    def fitFromPostgres(self, tablename:str="PRODUCTSTRX", columns:list=["IDTRANSACTION", "IDPRODUCT"]):
+    def fitFromPostgres(self, tablename:str="productstrx", columns:list=["idtransaction", "idproduct"]):
         """
         Fit the model using data from a PostgreSQL database. Return the result of the association rule mining and store it in the database.
         Args:
@@ -148,7 +148,7 @@ class ARDiscoverer():
         connPG = None
         df = None
         try:                   
-            query = f"SELECT {colnames} FROM {tablename} order by 1 asc, 2 asc"
+            query = f"SELECT DISTINCT {colnames} FROM {tablename} order by 1 asc, 2 asc"
             
             df = pd.read_sql(query, DatabaseConnection.get_pg_connection_string())
             if df is None:
