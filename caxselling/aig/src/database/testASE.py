@@ -52,7 +52,7 @@ def test_load_sampledata():
         filepath_jpg = os.path.join(directory, f"{filename}.jpg")
         
         im=Image.open(filepath_jpg)
-        buffered = io.BytesIO(
+        buffered = io.BytesIO()
         im.save(buffered, format="JPEG")
         img_bytes = buffered.getvalue()
         img_b64 = base64.b64encode(img_bytes).decode('utf-8')
