@@ -5,11 +5,24 @@
 #
 
 services:
+  ase-chromadb:
+    image: chromadb/chroma
+    hostname: ase-chromadb
+    container_name: ase-chromadb
+    ports:
+      - '${ASE_CHROMADB_PORT}:8000'
+    networks: 
+      - app_network
+    environment:
+      - no_proxy=${no_proxy}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+    volumes:
+      - chroma_data:/data
   aig-server:
     image: aig-server-restx:0.0.1
     hostname: aig-server
     container_name: aig-server
-    read_only: true
     security_opt:
       - no-new-privileges
     build:
@@ -31,9 +44,9 @@ services:
     networks: 
       - app_network
     environment:
-      - no_proxy=$no_proxy
-      - http_proxy=$http_proxy
-      - https_proxy=$https_proxy
+      - no_proxy=${no_proxy},ase-chromadb
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
       - HTTPS=false # Make it "true" to enable SSL/TLS secure mode, mount the generated certificates
       - REST_SERVER_PORT=${AIG_PORT}      
       - SERVICE_NAME=aig-server
@@ -49,6 +62,12 @@ services:
       - "LIBVA_DRIVER_NAME=iHD" #OpenVINO & OneAPI
       - "VIDEO_GROUP_ID=44" #OpenVINO & OneAPI
       - LD_LIBRARY_PATH="/usr/lib/wsl/lib" #WSL2 specific, it is needed to run the container in WSL2
+      - ASE_COLLECTION_NAME=${ASE_COLLECTION_NAME} # Name of the ASE collection to use
+      - ASE_CHROMADB_PORT=${ASE_CHROMADB_PORT} # Port for ChromaDB service      
+      - ASE_CHROMADB_HOST=ase-chromadb # Hostname for ChromaDB service
+      - ASE_IMG_PATH=${ASE_IMG_PATH} # Path in the container to save the model converted to OpenVINO format
+    depends_on:
+      - ase-chromadb
     volumes:
       - vol_pipeline_root:/var/cache/pipeline_root:uid=${UID},gid=${UID}
       - "/run/udev:/run/udev:ro"
@@ -93,3 +112,4 @@ volumes:
     driver_opts:
       type: tmpfs
       device: tmpfs 
+  chroma_data:

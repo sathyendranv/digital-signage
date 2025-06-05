@@ -1,0 +1,1 @@
+It is the default directory to store the predefined ads (JPG).

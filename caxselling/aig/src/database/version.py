@@ -8,6 +8,10 @@ import openvino as ov
 # Logging
 import logging
 logger = logging.getLogger(__name__)
+# ChromaDB
+import chromadb
+# numpy
+import numpy as np
 
 class Version_sch(object):
     """
@@ -125,7 +129,7 @@ class AigServerMetadata:
 
     @staticmethod
     def get_rest_server_port():
-        return os.getenv('AIG_PORT',5003)
+        return int(os.getenv('AIG_PORT',5003))
 
     @staticmethod
     def get_model_inference_steps():
@@ -165,3 +169,328 @@ class ServerEnvironment:
         aig = AigServerMetadata.get_aig_versioninfo()
         dependencies = ServerEnvironment.get_dependencies()
         return [aig] + dependencies
+
+class AseServerMetadata:
+    def __new__(cls):
+        """Singleton pattern to ensure only one instance of AigServerMetadata exists."""
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(AseServerMetadata, cls).__new__(cls)
+        return cls.instance
+    
+    def __init__(self):
+        # It avoids re-initialization of the instance for the singleton pattern
+        if not hasattr(self, 'chroma_client'):
+            # Initialize the Chroma client
+            logger.warning("[ChromaDB] Initializing Chroma client with persistent storage...")
+            try:
+                self.chroma_client = chromadb.HttpClient(host=AseServerMetadata.get_ase_chromadb_host(), port=AseServerMetadata.get_ase_chromadb_port())
+            except Exception as e:
+                logger.error(f"[ChromaDB] Error initializing Chroma client({AseServerMetadata.get_ase_chromadb_host()}:{AseServerMetadata.get_ase_chromadb_port()}): {e}")
+                self.chroma_client = None
+
+            if self.chroma_client is not None:
+                self.collection = self.chroma_client.get_or_create_collection(name=AseServerMetadata.get_ase_collection_name())
+
+                if self.collection is not None:
+                    logger.warning(f"[ChromaDB] Collection '{AseServerMetadata.get_ase_collection_name()}' created successfully.")
+                else:
+                    logger.error(f"[ChromaDB] Failed to create collection '{AseServerMetadata.get_ase_collection_name()}'.")
+
+            else:
+                logger.error("[ChromaDB] Failed to initialize Chroma client.")
+                self.collection = None
+
+            self.test_chromadb()  # Test the ChromaDB connection  and Embeddings
+            
+    
+    def chromadb_heartbeat(self):
+        """
+        Check the Chromadb reachability.
+        """
+        if self.chroma_client is not None:
+            return self.chroma_client.heartbeat()
+        else:            
+            return None
+    
+    def test_chromadb(self):
+        """
+        Test the ChromaDB connection by inserting a dummy document.
+        """
+        if self.collection is not None:
+            try:
+
+                self.collection.add(
+                    documents=["This is a test defining citrics and their variety."],
+                    metadatas=[{"source": "test"}],
+                    ids=["test_doc_1"]
+                )
+                self.collection.add(
+                    documents=["This is another test document describing apples and bananas."],
+                    metadatas=[{"source": "test2"}],
+                    ids=["test_doc_2"]
+                )                
+
+                results=self.collection.query(
+                    query_texts=["What is the document most related to oranges?"],
+                    n_results=2
+                )  # Query the collection
+
+                logger.warning(f"[ChromaDB] Query results: {results}")
+                logger.warning("[ChromaDB] Test document added successfully.")
+            except Exception as e:
+                logger.error(f"[ChromaDB] Error adding test document: {e}")
+        else:
+            logger.error("[ChromaDB] Collection is not initialized.")
+
+    @staticmethod
+    def get_ase_img_id():
+        """
+        Get the ASE image ID between 0 and 1x10^6.
+        It tries 10 times to get an ID not associated with an image.
+        Default is 'ase-img'.
+        """
+        for i in range(10):
+            proposal = int(np.random.randint(0, 1000000))
+
+            directory = AseServerMetadata.get_ase_img_path()
+            filename = f"img_{str(proposal)}.jpg"
+            filepath = os.path.join(directory, filename)
+            
+            if not os.path.exists(filepath):
+                return proposal
+            else:
+                continue #Look for a another ID            
+        
+    @staticmethod
+    def get_ase_collection_name():
+        return os.getenv('ASE_COLLECTION_NAME', 'ase-collection') # ASE collection name
+    
+    @staticmethod
+    def get_ase_chromadb_port() ->int:
+        """
+        Get the ASE Chroma DB Port.
+        Default is '8000'.
+        """
+        return int(os.getenv('ASE_CHROMADB_PORT', 8000)) # Default host for Chroma DB
+    
+    @staticmethod
+    def get_ase_chromadb_host():
+        """
+        Get the ASE Chroma DB host.
+        Default is 'ase-chromadb'.
+        """
+        return os.getenv('ASE_CHROMADB_HOST', 'ase-chromadb') # Default host for Chroma DB        
+    
+    @staticmethod
+    def get_ase_img_path():
+        """
+        Get the ASE img path.
+        """
+        return os.getenv('ASE_IMG_PATH', '/opt/sharedata/imgs')
+
+    @staticmethod
+    def save_image_to_dir(image: Image.Image, id: int):
+        # Ensure the directory exists
+        directory=AseServerMetadata.get_ase_img_path()
+        filename = f"img_{str(id)}.jpg"
+        os.makedirs(directory, exist_ok=True)
+        # Build the full path
+        filepath = os.path.join(directory, filename)
+        # Save the image
+        try:
+            image.save(filepath)
+        except Exception as e:
+            logger.error(f"[ChromaDB] Error saving image to {filepath}: {e}")
+            raise ValueError(f"Could not save image to {filepath}. Error: {e}")
+
+        return filepath
+
+    @staticmethod
+    def get_image_file(id: int) -> Image.Image:
+        """
+        Get the image file path for the given ID.
+        :param id: The ID of the image.
+        :return: The full path to the image file.
+        """
+        directory = AseServerMetadata.get_ase_img_path()
+        filename = f"img_{str(id)}.jpg"
+        filepath = os.path.join(directory, filename)
+        
+        if not os.path.exists(filepath):
+            logger.warning(f"Image file not found: {filepath}")
+            return None
+        
+        return Image.open(filepath)
+
+    @staticmethod
+    def get_image_file_from_path(filepath: str) -> Image.Image:
+        """
+        Get the image file from filepath 
+        :param filepath: The path of the image.
+        :return: The image file.
+        """
+        if filepath is None:
+            return None
+        
+        if not os.path.exists(filepath):
+            logger.warning(f"Image file not found: {filepath}")
+            return None
+        
+        return Image.open(filepath)
+
+    @staticmethod
+    def remove_image_file(id: int):
+        directory = AseServerMetadata.get_ase_img_path()
+        filename = f"img_{str(id)}.jpg"
+        filepath = os.path.join(directory, filename)
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                logger.info(f"Removed image file: {filepath}")
+            else:
+                logger.warning(f"File not found: {filepath}")
+        except Exception as e:
+            logger.error(f"Error removing image file {filepath}: {e}")
+            return False
+        
+        return True
+
+    def chromadb_add(self,id:int, description:str,image:Image, source:str="ase"):
+        if self.collection is None:
+            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+        
+        if id is None or description is None or image is None:
+            raise ValueError("id, description and image must be provided.")
+
+        filepath = None
+        try:
+            filepath=AseServerMetadata.save_image_to_dir(image, id)
+        except Exception as e:
+            logger.error(f"[ChromaDB] Error processing image: {e}")
+            raise ValueError("Invalid image provided.") 
+
+        img_height = image.height
+        img_width = image.width
+
+        try:
+            self.collection.add(
+                documents=[description],
+                metadatas=[{"source": source, "id": id, "description": description, "img_path": filepath, "img_height": img_height, "img_width": img_width}],
+                ids=[str(id)]
+            )
+            logger.info(f"[ChromaDB] Document with ID {id} added successfully.")
+        except Exception as e:
+            AseServerMetadata.remove_image_file(id)
+            logger.error(f"[ChromaDB] Error adding document with ID {id}: {e}")
+            raise ValueError(f"Could not add document with ID {id} to ChromaDB. Error: {e}")
+        
+        return True
+    
+    def chromadb_remove(self, id:str):
+        """
+        Remove a document from ChromaDB by its ID.
+        """
+        if self.collection is None:
+            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+        
+        if id is None:
+            raise ValueError("id must be provided.")
+
+        try:
+            self.collection.delete(ids=[id])
+            try:
+                AseServerMetadata.remove_image_file(int(id))
+            except ValueError as e:
+                logger.info(f"{id}: Not image is associated with it.")
+
+            logger.info(f"[ChromaDB] Document with ID {id} removed successfully.")
+        except Exception as e:
+            logger.error(f"[ChromaDB] Error removing document with ID {id}: {e}")
+            raise ValueError(f"Could not remove document with ID {id} from ChromaDB. Error: {e}")
+        
+        return True
+    
+    def chromadb_querytxt(self, simpletext:str, n_results:int=3):
+        return self.chromadb_query([simpletext], n_results)
+    
+    def chromadb_query(self, query_texts:list, n_results:int=3):
+        """
+        Query the ChromaDB collection with the given query texts.
+        :param query_texts: List of query texts to search for.
+        :param n_results: Number of results to return.
+        :return: Query results.
+        """
+        if self.collection is None:
+            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+        
+        if not query_texts or not isinstance(query_texts, list):
+            raise ValueError("query_texts must be a non-empty list.")
+
+        try:
+            results = self.collection.query(
+                query_texts=query_texts,
+                n_results=n_results
+            )
+            logger.info(f"[ChromaDB] Query executed successfully with {len(results['documents'])} results.")
+            return results
+        except Exception as e:
+            logger.error(f"[ChromaDB] Error executing query: {e}")
+            raise ValueError(f"Could not execute query. Error: {e}")
+    
+    def chromadb_exists(self, id:int):
+        """
+        Check if a document with the given ID exists in the ChromaDB collection.
+        """
+        if self.collection is None:
+            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+        if id is None:
+            raise ValueError("id must be provided.")
+
+        try:
+            result = self.collection.get(ids=[str(id)])
+            # If the id exists, result['ids'] will contain the id
+            if result is None or 'ids' not in result or not result['ids']:
+                logger.info(f"[ChromaDB] Document with ID {id} does not exist.")
+                return False
+            
+            return str(id) in result.get('ids', [])[0]
+        except Exception as e:
+            logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
+            return False
+        
+    def chromadb_update(self, id, description: str, image: Image.Image, source: str = "ase"):
+        """
+        Update a document in ChromaDB by its ID.
+        """
+        if self.collection is None:
+            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+        if id is None or description is None or image is None:
+            raise ValueError("id, description, and image must be provided.")
+
+        # Remove the old document and image (if they exist)
+        self.chromadb_remove(str(id))
+
+        # Add the new/updated document and image
+        return self.chromadb_add(id, description, image, source)    
+    
+    def chromadb_get(self, id:str):
+        """
+        Get a document with the given ID in the ChromaDB collection.
+        """
+        if self.collection is None:
+            raise ValueError("ChromaDB collection is not initialized. Please check the connection settings.")
+        if id is None:
+            raise ValueError("id must be provided.")
+
+        try:
+            result = self.collection.get(ids=[str(id)])
+            # If the id exists, result['ids'] will contain the id
+            if result is None or 'ids' not in result:
+                logger.warning(f"[ChromaDB] Document with ID {id} does not exist.")
+                return None
+            
+            return result
+        except Exception as e:
+            logger.error(f"[ChromaDB] Error checking existence of document with ID {id}: {e}")
+            return None
+    

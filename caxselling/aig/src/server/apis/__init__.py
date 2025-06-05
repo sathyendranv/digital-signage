@@ -3,6 +3,7 @@ from flask_restx import Api
 from .status import api as aig_status
 from .version import api as aig_version
 from .modelinf import api as aig_modelinf
+from .predefinedads import api as predefined_ads_api
 
 #API DOC
 api = Api(
@@ -16,3 +17,4 @@ api = Api(
 api.add_namespace(aig_status, path='/aig') 
 api.add_namespace(aig_version, path='/aig')
 api.add_namespace(aig_modelinf, path='/aig') 
+api.add_namespace(predefined_ads_api, path='/ase') 

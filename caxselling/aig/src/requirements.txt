@@ -16,3 +16,5 @@ jinja2
 cython
 numpy
 pillow
+accelerator 
+chromadb # ASE for Vector DB connectivity

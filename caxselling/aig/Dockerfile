@@ -15,7 +15,7 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN \
     apt-get update && \
-    apt-get install -y -q --no-install-recommends gnupg=\* ca-certificates=\* gpg-agent=\* wget=\* libtbb-dev=\* cmake=\* git=\* git-lfs=\* vim=\* numactl=\* && \
+    apt-get install -y -q --no-install-recommends gnupg=\* ca-certificates=\* gpg-agent=\* wget=\* libtbb-dev=\* cmake=\* git=\* git-lfs=\* vim=\* numactl=\* curl=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
