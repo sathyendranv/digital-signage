@@ -22,10 +22,10 @@ def test_ase_add_ad():
     requests.post("http://localhost:5003/ase/predef/", json=mydic)
 
 def test_ase_predef_query():
-    res=requests.post("http://localhost:5003/ase/predef/query", json={"query": "banana", "n_results": 4})
+    res=requests.post("http://localhost:5003/ase/predef/query", json={"query": "I am looking for meat", "n_results": 4})
     items=res.json()
 
-    directory=os.path.expanduser("~")  # Uncomment to run the ad addition test
+    directory=os.path.expanduser("~/ase_test")  # Uncomment to run the ad addition test
     
     for item in items:
         print(f"ID: {item['id']}, Description: {item['description']}, source: {item['source']}")
@@ -44,7 +44,7 @@ def test_ase_predef_query_with_adhoc():
     res = requests.post("http://localhost:5003/ase/predef/query/ad", json=query_data)
     items = res.json()
 
-    directory = os.path.expanduser("~")  # Uncomment to run the ad addition test
+    directory = os.path.expanduser("~/ase_test")  # Uncomment to run the ad addition test
     
     res_counter=0
     for item in items:
@@ -94,6 +94,7 @@ def test_load_sampledata():
 
 if __name__ == "__main__":
     #test_ase_add_ad()
-    #test_ase_predef_query()  # Run the test function to check ASE predefined ads query functionality
     #test_load_sampledata()  # Run the test function to check loading sample data
-    test_ase_predef_query_with_adhoc()
+
+    #test_ase_predef_query()  #   Run the test function to check ASE predefined ads query functionality
+    test_ase_predef_query_with_adhoc() #content related to beauty, skincare, haircare, cosmetics, and personal care products

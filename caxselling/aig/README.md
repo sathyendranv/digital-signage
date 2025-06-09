@@ -50,6 +50,8 @@ The [sample.env](./docker/sample.env) file is a sample configuration file. If yo
 |proxy|https_proxy|environment variable with https proxy information| Default: ${https_proxy}|
 |proxy|no_proxy|environment variable for the address that the proxy is not required| Example: localhost,eii-nightly-devops.iind.intel.com,127.0.0.1|
 
+ASe configuration parameters are available in the following [README.md](../ase/README.md) document.
+
 [&uarr; Top](#advertise-image-generator-aig)
 
 ## Intel Hardware Drivers
