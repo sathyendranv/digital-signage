@@ -6,7 +6,7 @@
 services:
   broker:
     image: eclipse-mosquitto
-    hostname: mqtt
+    hostname: mqtt_broker
     container_name: mqtt_broker
     volumes:
       - ./mosquitto/config:/mosquitto/config
@@ -32,16 +32,16 @@ services:
       - app_network
     environment:
       # MQTT
-      - MQTT_HOST="mqtt"
+      - MQTT_HOST="mqtt_broker"
       - MQTT_PORT=1883
       #RTSP
       - ENABLE_RTSP=true
       - RTSP_PORT=8554
       - ENABLE_WEBRTC=true
       - WEBRTC_SIGNALING_SERVER=http://${WHIP_SERVER_IP}:${WHIP_SERVER_PORT}      
-      - no_proxy=$no_proxy,multimodal-data-visualization-streaming,${RTSP_CAMERA_IP},${OTEL_COLLECTOR_HOST},${S3_STORAGE_HOST}
-      - http_proxy=$http_proxy
-      - https_proxy=$https_proxy
+      - no_proxy=${no_proxy},multimodal-data-visualization-streaming,${RTSP_CAMERA_IP},${OTEL_COLLECTOR_HOST},${S3_STORAGE_HOST}
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
       - RUN_MODE=EVA
       - GENICAM=Balluff
       - GST_DEBUG=1,gencamsrc:2

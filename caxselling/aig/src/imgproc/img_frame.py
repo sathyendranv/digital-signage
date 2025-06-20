@@ -22,7 +22,7 @@ class ImgDecorator:
         Draws a double border frame around the image.
         """
         if not isinstance(img, Image.Image):
-            raise TypeError("Input must be a PIL Image object")
+            raise TypeError(f"Input must be a PIL Image object. Received {type(img)}")            
         
         if percentageFromBorder < 0 or percentageFromBorder > 100:
             raise ValueError("percentageFromBorder must be between 0 and 100")
@@ -71,7 +71,7 @@ class ImgDecorator:
         """
 
         if not isinstance(img, Image.Image):
-            raise TypeError("Input must be a PIL Image object")
+            raise TypeError(f"Input must be a PIL Image object. Received {type(img)}")
         
         if not isinstance(align,str) or align not in ["left", "center", "right"]:
             raise ValueError("align must be 'left', 'center', or 'right'")
@@ -170,7 +170,7 @@ class ImgDecorator:
         Draws a price string on the image with a circle behind it, specified alignment, and margins.
         """
         if not isinstance(img, Image.Image):
-            raise TypeError("Input must be a PIL Image object")
+            raise TypeError(f"Input must be a PIL Image object. Received {type(img)}")
         
         if not isinstance(align,str) or align not in ["left", "center", "right"]:
             raise ValueError("align must be 'left', 'center', or 'right'")
@@ -264,7 +264,7 @@ class ImgDecorator:
         rect_radius: int = 20        # Corner radius for rounded rectangle
     ):
         if not isinstance(img, Image.Image):
-            raise TypeError("Input must be a PIL Image object")
+            raise TypeError(f"Input must be a PIL Image object. Received {type(img)}")
         if not isinstance(align, str) or align not in ["left", "center", "right"]:
             raise ValueError("align must be 'left', 'center', or 'right'")
         if not isinstance(valign, str) or valign not in ["top", "middle", "bottom"]:
@@ -345,7 +345,7 @@ class ImgDecorator:
         Draws a logo on the image with specified alignment and margins.
         """
         if not isinstance(img, Image.Image):
-            raise TypeError("Input must be a PIL Image object")
+            raise TypeError(f"Input must be a PIL Image object. Received {type(img)}")
         if not isinstance(logo_img, Image.Image):
             raise TypeError("logo_img must be a PIL Image object")
         if not isinstance(align, str) or align not in ["left", "center", "right"]:
@@ -403,7 +403,7 @@ class ImgDecorator:
         Draws a slogan text on the image with specified alignment and margins.
         """
         if not isinstance(img, Image.Image):
-            raise TypeError("Input must be a PIL Image object")
+            raise TypeError(f"Input must be a PIL Image object. Received {type(img)}")
         if not isinstance(align, str) or align not in ["left", "center", "right"]:
             raise ValueError("align must be 'left', 'center', or 'right'")
         if not isinstance(valign, str) or valign not in ["top", "middle", "bottom"]:

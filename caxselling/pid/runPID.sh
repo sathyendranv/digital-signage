@@ -198,7 +198,7 @@ e2e() {
                     "type": "mqtt",
                     "publish_frame": false,
                     "topic": "topic_od_mjd",
-                    "host":"mqtt:1883",
+                    "host":"mqtt_broker:1883",
                     "mqtt-client-id": "gva-meta-publish"
                 },
                 "frame": {
@@ -224,7 +224,7 @@ e2e() {
                     "type": "mqtt",
                     "publish_frame": false,
                     "topic": "topic_od_mjd",
-                    "host":"mqtt:1883",
+                    "host":"mqtt_broker:1883",
                     "mqtt-client-id": "gva-meta-publish"
                 },
                 "frame": {

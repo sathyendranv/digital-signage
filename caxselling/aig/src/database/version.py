@@ -54,6 +54,10 @@ class AigServerMetadata:
         Returns the preloaded Text2Image model.
         If the model is not available, it returns None.
         """
+        if 'preloadedModel' not in self.__dict__:
+            logger.error("[OpenVINO] Preloaded model is not initialized. Please check the model path and device availability.")
+            return None
+        
         return self.preloadedModel
     
     """

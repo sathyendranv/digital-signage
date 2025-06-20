@@ -17,6 +17,7 @@ mqtttopic_sch = api.model('mqttdefinitions', {
     'port': fields.Integer(required=True, default=1883, description="The port number in the MQTT Broker Host.", example="1883"),
     'topic': fields.String(required=True, default=None, description="Topic to listen in the MQTT Broker.", example="mytopic"),                         
     'status': fields.String(required=False, default=None, description="Last Known Status for the Topic in the MQTT Broker.", example="[YYYY-MM-DD HH:MM:SS] - Active {#Elements/min}"),                        
+    'message': fields.String(required=False, default=None, description="Description or concepts related to the topic.", example="Fruits and Vegetables"),
 })
 
 class Mqtttopic_sch(object):
@@ -24,6 +25,7 @@ class Mqtttopic_sch(object):
     port:int=None
     topic:str=None
     status:str=None
+    message:str=None
 
 @api.route('/mqtt/',
            doc={"description": "Manage topics to listen given a MQTT broker."})
@@ -50,6 +52,9 @@ class Mqtttopic(Resource):
                 phost=data["host"]
                 pport=data["port"]
                 ptopic=data["topic"]
+                pmessage=data.get("message",None)
+                if pmessage is None:
+                    pmessage=""
 
                 curs.execute(f"SELECT hostname, port, topic from mqtt_topics where hostname like '{phost}' and port={pport} and topic like '{ptopic}' limit 1;")
                 results = curs.fetchall()
@@ -62,7 +67,7 @@ class Mqtttopic(Resource):
                     ret.status=message                    
                     return ret, 202
                 
-                curs.execute(f"INSERT INTO mqtt_topics(hostname, port, topic, message) VALUES('{phost}','{pport}','{ptopic}','');")
+                curs.execute(f"INSERT INTO mqtt_topics(hostname, port, topic, message) VALUES('{phost}','{pport}','{ptopic}','{pmessage}');")
 
                 # Incorporating the MQTT Client
                 mqtt_manager = MqttManager()
@@ -228,7 +233,7 @@ class MqtttopicQuery(Resource):
             mqttmanager=MqttManager()
             
             with conn.cursor() as curs:
-                curs.execute(f"SELECT hostname, port, topic from mqtt_topics where hostname like '{host}' order by hostname, port, topic limit 50;")
+                curs.execute(f"SELECT hostname, port, topic, message from mqtt_topics where hostname like '{host}' order by hostname, port, topic limit 50;")
                 results = curs.fetchall()
 
                 while results:
@@ -237,6 +242,7 @@ class MqtttopicQuery(Resource):
                     data.host=str(row[0])
                     data.port=int(row[1])
                     data.topic=str(row[2])
+                    data.message=str(row[3]) if row[3] is not None else ""
 
                     if mqttmanager.exist_client(data.host, data.port, data.topic):
                         #Get the status from the MQTT Client

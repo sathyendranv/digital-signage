@@ -1,4 +1,3 @@
-
 from PIL import Image
 import requests
 import base64, io
@@ -92,9 +91,35 @@ def test_load_sampledata():
         requests.post("http://localhost:5003/ase/predef/", json=mydic)
         print(f"Content: {filename}")
 
+def test_ase_firstadd():
+    namedir = "~"
+    directory = os.path.expanduser(namedir)
+    filename = "first_add"
+    filepath_jpg = os.path.join(directory, f"{filename}.jpg")
+
+    # This function is used to add the first ad to the database
+    json={}
+    json["query"]="What is related to healthy food?"
+    json["n_results"]=1
+    json["use_default_ad_onempty"]=True
+
+    image_url = "http://localhost:5003/ase/predef/query/firstad"
+    mydic = {}
+    
+    response=requests.post(image_url, json=json)
+    if response.status_code != 200:
+        print(f"Error fetching image: {response.status_code}")
+        return
+    
+    buffered = io.BytesIO(response.content) #R eceives binary data
+    buffered.seek(0) #Positioning at the start
+    with open(filepath_jpg, 'wb') as f:
+        f.write(buffered.read())
+
 if __name__ == "__main__":
     #test_ase_add_ad()
     #test_load_sampledata()  # Run the test function to check loading sample data
 
     #test_ase_predef_query()  #   Run the test function to check ASE predefined ads query functionality
-    test_ase_predef_query_with_adhoc() #content related to beauty, skincare, haircare, cosmetics, and personal care products
+    #test_ase_predef_query_with_adhoc() #content related to beauty, skincare, haircare, cosmetics, and personal care products
+    test_ase_firstadd()

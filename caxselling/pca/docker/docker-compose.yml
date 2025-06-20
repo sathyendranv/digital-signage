@@ -67,9 +67,9 @@ services:
     depends_on:
       - db
     environment:
-      - no_proxy=$no_proxy
-      - http_proxy=$http_proxy
-      - https_proxy=$https_proxy
+      - no_proxy=${no_proxy}, pca-server-postgres, pca-server-pgadmin4, mqtt-broker
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
       # Default Detection and Classification Device
       - DETECTION_DEVICE=CPU
       - CLASSIFICATION_DEVICE=CPU

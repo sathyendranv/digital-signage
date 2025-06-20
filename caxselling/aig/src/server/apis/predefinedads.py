@@ -195,6 +195,7 @@ class Predef_request_sch(object):
     use_default_ad_onempty:bool=True # It indicates whether the default ad should be returned when the query result is empty.
     price_details:Predef_request_sch_price=None
     promo_details:Predef_request_sch_promo=None
+    logo_details:Predef_request_sch_logo=None
     slogan_details:Predef_request_scg_slogan=None
     frame_details:Predef_request_sch_frame=None
 
@@ -301,7 +302,6 @@ class PredefAdResourceDeleteGet(Resource):
                     except Exception as e:
                         continue # when id is not int, discard from result and move to the next one
                     
-                    logger.error("Step 7. ")
                     # Get the metadata for the document    
                     doc_metadata = metadata_list #metadata_list is the dictionary of metadata for the document
                     if doc_metadata is None:
@@ -392,7 +392,7 @@ class PredefAdResourceQuery(Resource):
                         # Get the image from the server
                         img = server.get_image_file_from_path(img_path)
                         img_b64 = None
-                        if img is not None:
+                        if img is not None and isinstance(img, Image.Image):
                             buffered = io.BytesIO()
                             img.save(buffered, format="JPEG")
                             img_b64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
@@ -453,13 +453,15 @@ class Predefined_Adhocad_Img(Resource):
                         
             results=server.chromadb_querytxt(predef_query, n_results=predef_n_results)
             if results is None or len(results) == 0:
-                if predef_use_default_ad_onempty:
+                if predef_use_default_ad_onempty and server.default_ad_image is not None and \
+                    isinstance(server.default_ad_image, Image.Image):
                     pipeline_imgs.append(server.default_ad_image)
                 else:
                     return [], 200
             else:
                 if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:                    
-                    if predef_use_default_ad_onempty:
+                    if predef_use_default_ad_onempty and server.default_ad_image is not None and \
+                        isinstance(server.default_ad_image, Image.Image):
                         pipeline_imgs.append(server.default_ad_image)
                     else:
                         return [], 200
@@ -478,16 +480,21 @@ class Predefined_Adhocad_Img(Resource):
                                 img_path = doc_metadata.get('img_path',None)
                                 # Get the image from the server
                                 img = server.get_image_file_from_path(img_path)
-                                pipeline_imgs.append(img)
+                                if img is not None and isinstance(img, Image.Image):
+                                    # Ensure the image is a valid PIL Image
+                                    pipeline_imgs.append(img)
 
             if len(pipeline_imgs) == 0:
-                if predef_use_default_ad_onempty:
+                if predef_use_default_ad_onempty and server.default_ad_image is not None and isinstance(server.default_ad_image, Image.Image):
                     pipeline_imgs.append(server.default_ad_image)
                 else:
                     return [], 200
 
             for image in pipeline_imgs:
-                # Price details
+                if image is None or not isinstance(image, Image.Image):
+                    continue  # Skip if the image is None or not a valid PIL Image
+
+                # Price details                
                 price_details = data.get('price_details')            
                 img_postprice = None
                 if price_details is not None:
@@ -521,6 +528,9 @@ class Predefined_Adhocad_Img(Resource):
                                     price= price, align=align, valign=valign, 
                                     margin_percentage=marperc_from_border, font_size=font_size,
                                     line_width=line_width, price_color=price_color)    
+                    
+                    if img_postprice is None or not isinstance(img_postprice, Image.Image):
+                        img_postprice = image # Back to the original image if the price circle could not be drawn
                 else:
                     img_postprice = image
 
@@ -551,6 +561,9 @@ class Predefined_Adhocad_Img(Resource):
                                 align=align, valign=valign,
                                 margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width,
                                 rect_padding=rect_padding, rect_radius=rect_radius)
+                    
+                    if img_postpromo is None or not isinstance(img_postpromo, Image.Image):
+                        img_postpromo = img_postprice # Back to the original image if the promo could not be drawn
                 else:
                     img_postpromo = img_postprice
 
@@ -566,6 +579,9 @@ class Predefined_Adhocad_Img(Resource):
                                                                             percentageFromBorder=marperc_from_border)
                     else:
                         img_postframe = img_postpromo
+
+                    if img_postframe is None or not isinstance(img_postframe, Image.Image):
+                        img_postframe = img_postpromo # Back to the original image if the frame could not be drawn
                 else:
                     img_postframe = img_postpromo
 
@@ -585,6 +601,9 @@ class Predefined_Adhocad_Img(Resource):
                                     logo_percentage=logo_percentage, margin_px=margin_px)
                     else:
                         img_postlogo = img_postframe
+
+                    if img_postlogo is None or not isinstance(img_postlogo, Image.Image):
+                        img_postlogo = img_postframe #Back to the original image if the logo could not be drawn
                 else:
                     img_postlogo = img_postframe
 
@@ -607,19 +626,26 @@ class Predefined_Adhocad_Img(Resource):
                                 text=slogan_text, text_color=text_color,
                                 align=align, valign=valign,
                                 margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width)
+                    
+                    if img_postslogan is None or not isinstance(img_postslogan, Image.Image):
+                        img_postslogan = img_postlogo # Back to the original image if the slogan could not be drawn
                 else:
                     img_postslogan = img_postlogo
 
                 # Save the updated image to a BytesIO object
-                buffered = io.BytesIO()
-                img_postslogan.save(buffered, format='JPEG')  # or 'PNG'
-                im_b64= base64.b64encode(buffered.getvalue()).decode('utf-8')
-                
-                if(im_b64 is not None):
-                    item = Predef_ad_schema()
-                    item.imgb64 = im_b64
-                    pipeline_processed_imgs_b64.append(item)
-
+                if img_postslogan is not None and isinstance(img_postslogan, Image.Image):
+                    buffered = io.BytesIO()
+                    img_postslogan.save(buffered, format='JPEG')  # or 'PNG'
+                    im_b64= base64.b64encode(buffered.getvalue()).decode('utf-8')
+                    
+                    if(im_b64 is not None):
+                        item = Predef_ad_schema()
+                        item.imgb64 = im_b64
+                        pipeline_processed_imgs_b64.append(item)
+                else:
+                    errorMessage = f"Processed image is None or not a valid PIL Image. Type: {str(type(img_postslogan))}"
+                    logger.error(errorMessage)
+                    
         except Exception as e:
             errorMessage=f"Image Generation. Exception: {str(e)}"
             logger.error(errorMessage)
@@ -658,13 +684,15 @@ class Predefined_Adhocad_Img(Resource):
                         
             results=server.chromadb_querytxt(predef_query, n_results=predef_n_results)
             if results is None or len(results) == 0:
-                if predef_use_default_ad_onempty:
+                if predef_use_default_ad_onempty and server.default_ad_image is not None and \
+                    isinstance(server.default_ad_image, Image.Image):
                     pipeline_imgs.append(server.default_ad_image)
                 else:
                     return [], 200
             else:
                 if 'metadatas' not in results or 'ids' not in results or 'distances' not in results:                    
-                    if predef_use_default_ad_onempty:
+                    if predef_use_default_ad_onempty and server.default_ad_image is not None and \
+                        isinstance(server.default_ad_image, Image.Image):
                         pipeline_imgs.append(server.default_ad_image)
                     else:
                         return [], 200
@@ -683,18 +711,25 @@ class Predefined_Adhocad_Img(Resource):
                                 img_path = doc_metadata.get('img_path',None)
                                 # Get the image from the server
                                 img = server.get_image_file_from_path(img_path)
-                                pipeline_imgs.append(img)
+                                if img is not None and isinstance(img, Image.Image):
+                                    # Ensure the image is a valid PIL Image
+                                    pipeline_imgs.append(img)
 
             if len(pipeline_imgs) == 0:
-                if predef_use_default_ad_onempty:
+                if predef_use_default_ad_onempty and server.default_ad_image is not None and isinstance(server.default_ad_image, Image.Image):
+                    # If the default ad image is valid, append it
                     pipeline_imgs.append(server.default_ad_image)
                 else:
                     return [], 200
 
             for image in pipeline_imgs:
+                if image is None or not isinstance(image, Image.Image):
+                    continue  # Skip if the image is None or not a valid PIL Image
+
                 # Price details
                 price_details = data.get('price_details')            
                 img_postprice = None
+
                 if price_details is not None:
                     price:str=price_details.get('price', "")
                     align:str=price_details.get('align',"center")
@@ -720,15 +755,18 @@ class Predefined_Adhocad_Img(Resource):
                                 circle_color=price_circle_color,                             
                                 align=align, valign=valign,                             
                                 margin_percentage=marperc_from_border, 
-                                font_size=font_size, line_width=line_width)
+                                font_size=font_size, line_width=line_width)                        
                     else:
                         img_postprice = ImgDecorator.draw_price_circle(image, 
                                     price= price, align=align, valign=valign, 
                                     margin_percentage=marperc_from_border, font_size=font_size,
                                     line_width=line_width, price_color=price_color)    
+                    
+                    if img_postprice is None or not isinstance(img_postprice, Image.Image):
+                        img_postprice = image # Back to the original image if the price circle could not be drawn
                 else:
-                    img_postprice = image
-
+                    img_postprice = image                        
+                        
                 # Promo details (Rounded Rectangle)
                 promo_details = data.get('promo_details')
                 img_postpromo = None
@@ -756,6 +794,9 @@ class Predefined_Adhocad_Img(Resource):
                                 align=align, valign=valign,
                                 margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width,
                                 rect_padding=rect_padding, rect_radius=rect_radius)
+
+                    if img_postpromo is None or not isinstance(img_postpromo, Image.Image):
+                        img_postpromo = img_postprice # Back to the original image if the promo could not be drawn
                 else:
                     img_postpromo = img_postprice
 
@@ -771,6 +812,9 @@ class Predefined_Adhocad_Img(Resource):
                                                                             percentageFromBorder=marperc_from_border)
                     else:
                         img_postframe = img_postpromo
+
+                    if img_postframe is None or not isinstance(img_postframe, Image.Image):
+                        img_postframe = img_postpromo # Back to the original image if the frame could not be drawn
                 else:
                     img_postframe = img_postpromo
 
@@ -790,6 +834,9 @@ class Predefined_Adhocad_Img(Resource):
                                     logo_percentage=logo_percentage, margin_px=margin_px)
                     else:
                         img_postlogo = img_postframe
+
+                    if img_postlogo is None or not isinstance(img_postlogo, Image.Image):
+                        img_postlogo = img_postframe #Back to the original image if the logo could not be drawn
                 else:
                     img_postlogo = img_postframe
 
@@ -799,6 +846,7 @@ class Predefined_Adhocad_Img(Resource):
                 if slogan_details is not None:
                     slogan_text:str=slogan_details.get('slogan_text', "")
                     text_color:str=slogan_details.get('text_color',"white")
+
                     if ImgDecorator.is_color_valid(text_color) is False:
                         text_color="white"
 
@@ -812,15 +860,26 @@ class Predefined_Adhocad_Img(Resource):
                                 text=slogan_text, text_color=text_color,
                                 align=align, valign=valign,
                                 margin_percentage=marperc_from_border, font_size=font_size, line_width=line_width)
+
+                    if img_postslogan is None or not isinstance(img_postslogan, Image.Image):
+                        img_postslogan = img_postlogo # Back to the original image if the slogan could not be drawn
                 else:
                     img_postslogan = img_postlogo
 
+                if img_postslogan is None:
+                    img_postslogan = image  # Fallback to the original image if no modifications were made
+
                 # Save the updated image to a BytesIO object
-                img_io = io.BytesIO()
-                img_postslogan.save(img_io, format='JPEG')  # or 'PNG'                
-                img_io.seek(0)  # Move to the beginning of the BytesIO object
-                
-                return send_file(img_io, mimetype='image/jpeg', download_name='ad_image.jpg')
+                if img_postslogan is not None and isinstance(img_postslogan, Image.Image):                
+                    img_io = io.BytesIO()
+                    img_postslogan.save(img_io, format='JPEG')  # or 'PNG'                
+                    img_io.seek(0)  # Move to the beginning of the BytesIO object
+                    
+                    return send_file(img_io, mimetype='image/jpeg', download_name='ad_image.jpg')
+                else:
+                    errorMessage = f"Processed image is None or not a valid PIL Image. Type: {str(type(img_postslogan))}"
+                    logger.error(errorMessage)
+                    return errorMessage, 500
 
         except Exception as e:
             errorMessage=f"Image Generation. Exception: {str(e)}"

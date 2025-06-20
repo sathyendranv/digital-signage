@@ -7,7 +7,7 @@ from flask_restx import Namespace, Resource, fields
 import openvino_genai
 from PIL import Image
 #Logging
-import math
+import time
 import logging
 logger = logging.getLogger(__name__)
 #AIGServer Environment
@@ -178,6 +178,7 @@ class Minf_request_sch(object):
 class ModelInference_Img(Resource):
     @api.response(200, 'Success')
     @api.response(500, 'Accepted but it could not be processed/recovered')    
+    @api.response(503, 'Accepted but server is busy with other requests')    
     @api.expect(minf_request_sch, validate=True, description="It expects the text description to generate the image and an optional offer to put over the message as a banner.")
     def post(self):
         list=[]
@@ -193,7 +194,7 @@ class ModelInference_Img(Resource):
             # Model
             model=AigServerMetadata.get_t2i_model_path() # Model Path only
             description=data.get('description')
-            device=data.get('device', 'CPU')
+            device=data.get('device', 'GPU')
 
             pipe=None
             if str(device).upper() == AigServerMetadata.get_t2i_model_device():
@@ -202,11 +203,33 @@ class ModelInference_Img(Resource):
 
             if pipe is None:
                 pipe = openvino_genai.Text2ImagePipeline(model, device)
+                       
+            image_tensor = None
+            retry = 3
+            counter = 0
+            while counter < retry:
+                try:
+                    image_tensor = pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
+                                                    num_inference_steps=AigServerMetadata.get_model_inference_steps(), num_images_per_prompt=1)
+                    if image_tensor is not None and len(image_tensor.data) > 0:
+                        counter = retry  # Exit loop if image generation is successful
+                except Exception as e:
+                    image_tensor = None
+                    counter += 1
+                    time.sleep(10)  # Wait 10 seconds before retrying
 
-            image_tensor =  pipe.generate(description, width=AigServerMetadata.get_img_width(), height=AigServerMetadata.get_img_height(), 
-                                            num_inference_steps=AigServerMetadata.get_model_inference_steps(), num_images_per_prompt=1)
+            if image_tensor is None:
+                errorMessage=f"Image Generation. Service is busy."
+                logger.error(errorMessage)
+                return errorMessage, 503
+            
             image = Image.fromarray(image_tensor.data[0])
 
+            if image is None or not isinstance(image, Image.Image):
+                errorMessage=f"Image Generation. The generated image is not valid."
+                logger.error(errorMessage)
+                return errorMessage, 500
+            
             # Price details
             price_details = data.get('price_details')            
             img_postprice = None
