@@ -8,7 +8,7 @@ def test_ase_add_ad():
     image_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcStMP8S3VbNCqOQd7QQQcbvC_FLa1HlftCiJw&s"
     mydic={}
 
-    im = Image.open(requests.get(image_url, stream=True).raw)
+    im = Image.open(requests.get(image_url, stream=True, timeout=30).raw)
     buffered = io.BytesIO()
     im.save(buffered, format="JPEG")
     img_bytes = buffered.getvalue()
@@ -18,11 +18,11 @@ def test_ase_add_ad():
     mydic['id'] = 1
     mydic['source'] = "test_source"
 
-    requests.post("http://localhost:5003/ase/predef/", json=mydic)
+    requests.post("http://localhost:5003/ase/predef/", json=mydic, timeout=30)
 
 def test_ase_predef_query():
-    res=requests.post("http://localhost:5003/ase/predef/query", json={"query": "I am looking for meat", "n_results": 4})
-    items=res.json()
+    res = requests.post("http://localhost:5003/ase/predef/query", json={"query": "I am looking for meat", "n_results": 4}, timeout=30)
+    items = res.json()
 
     directory=os.path.expanduser("~/ase_test")  # Uncomment to run the ad addition test
     
@@ -40,7 +40,7 @@ def test_ase_predef_query_with_adhoc():
     with open("./caxselling/aig/src/database/samplequery.json", "r", encoding="utf-8") as f:
         query_data = json.load(f)
 
-    res = requests.post("http://localhost:5003/ase/predef/query/ad", json=query_data)
+    res = requests.post("http://localhost:5003/ase/predef/query/ad", json=query_data, timeout=30)
     items = res.json()
 
     directory = os.path.expanduser("~/ase_test")  # Uncomment to run the ad addition test
@@ -88,7 +88,7 @@ def test_load_sampledata():
         
         mydic['description'] = description if description else "No description available."
 
-        requests.post("http://localhost:5003/ase/predef/", json=mydic)
+        requests.post("http://localhost:5003/ase/predef/", json=mydic, timeout=30)
         print(f"Content: {filename}")
 
 def test_ase_firstadd():
@@ -106,7 +106,7 @@ def test_ase_firstadd():
     image_url = "http://localhost:5003/ase/predef/query/firstad"
     mydic = {}
     
-    response=requests.post(image_url, json=json)
+    response=requests.post(image_url, json=json, timeout=30)
     if response.status_code != 200:
         print(f"Error fetching image: {response.status_code}")
         return

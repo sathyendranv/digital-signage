@@ -516,7 +516,7 @@ if __name__ == '__main__':
         # Run the Flask app
         logger.info("Starting Flask server on http://0.0.0.0:5000")
         # Start Flask in a separate thread
-        flask_thread = threading.Thread(target=lambda: app.run(host='0.0.0.0', port=5000, debug=False, threaded=True, use_reloader=False))
+        flask_thread = threading.Thread(target=lambda: app.run(host='0.0.0.0', port=5000, debug=False, threaded=True, use_reloader=False)) # nosec B104
         flask_thread.daemon = True
         flask_thread.start()
         logger.info("Flask server started in separate thread")

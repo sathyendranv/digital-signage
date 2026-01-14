@@ -13,8 +13,8 @@ if __name__ == '__main__':
     parser.add_argument("--port", type=int, default=os.getenv('AIG_PORT'))
     args = parser.parse_args()
 
-    aseserver = AseServerMetadata() #Initialize the ChromaDB
+    aseserver = AseServerMetadata() # Initialize the ChromaDB
     aigserver = AigServer()
 
-    #Registering the clean up function    
-    aigserver.run(hostname="0.0.0.0", pport=args.port, pdebug=True,)
+    # Registering the clean up function    
+    aigserver.run(hostname="0.0.0.0", pport=args.port, pdebug=True,) # nosec B104

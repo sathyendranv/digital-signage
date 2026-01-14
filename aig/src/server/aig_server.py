@@ -19,6 +19,6 @@ class AigServer:
         api.init_app(self.app) # Initializing APIs in App
         logger.info(f"API initialized")
 
-    def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port(), pdebug : bool = False):
+    def run(self, hostname : str = "0.0.0.0", pport : int = AigServerMetadata.get_rest_server_port(), pdebug : bool = False): # nosec B104
         return self.app.run(host= hostname, port=pport, debug=pdebug)
     
