@@ -91,8 +91,8 @@ check_env_variables:
 				fi \
 				;; \
 			MTX_WEBRTCICESERVERS2_0_PASSWORD) \
-				if ! echo "$$value" | grep -Eq "^[A-Za-z0-9]{10,}$$" || ! echo "$$value" | grep -q "[0-9]" || ! echo "$$value" | grep -q "[A-Za-z]"; then \
-					echo "MTX_WEBRTCICESERVERS2_0_PASSWORD length must be a minimum of 10 alphanumeric characters with at least one digit"; \
+				if ! echo "$$value" | grep -Eq "^[A-Za-z0-9]{8,}$$" || ! echo "$$value" | grep -q "[0-9]" || ! echo "$$value" | grep -q "[A-Za-z]"; then \
+					echo "MTX_WEBRTCICESERVERS2_0_PASSWORD length must be a minimum of 8 alphanumeric characters with at least one digit"; \
 					exit 1; \
 				fi \
 				;; \

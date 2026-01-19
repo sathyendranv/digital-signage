@@ -148,7 +148,7 @@ services:
       - chroma_data:/data
 
   aig-server:
-    image: aig-server-restx:1.0.0
+    image: aig-server:1.0.0
     hostname: aig-server
     container_name: aig-server
     security_opt:

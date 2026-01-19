@@ -179,5 +179,5 @@ caxselling/pid/e2e_detections.json
 aig/models
 pid/.modelenv
 pid/models/
-pid/downloadAndQuantizeModel.sh
+pid/downloadAndQuantizeModel*.sh
 aig/sharedata/imgs/
