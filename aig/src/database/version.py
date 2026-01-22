@@ -2,6 +2,8 @@ import importlib.metadata
 from datetime import datetime
 from PIL import Image
 import os
+import gc
+import threading
 # GenAI
 import openvino_genai
 import openvino as ov
@@ -35,12 +37,12 @@ class AigServerMetadata:
         # It avoids re-initialization of the instance for the singleton pattern
         if not hasattr(self, 'logo'):
             self.logo = Image.open(AigServerMetadata.get_logo_path()) if AigServerMetadata.get_logo_path() else None
-
-            # Initialize the model for CPU            
-            if AigServerMetadata.is_device_available(AigServerMetadata.get_t2i_model_device()):
-                self.preloadedModel = openvino_genai.Text2ImagePipeline(AigServerMetadata.get_t2i_model_path(), AigServerMetadata.get_t2i_model_device())
-            else:
-                self.preloadedModel = None
+            
+            # Model is NOT preloaded - lazy loading instead
+            self.preloadedModel = None
+            self._model_device = None
+            self._model_lock = threading.Lock()
+            logger.info("[AIG] Model will be loaded on-demand (lazy loading enabled)")
             
 
     def get_logo(self):
@@ -52,14 +54,46 @@ class AigServerMetadata:
     
     def get_preloaded_model(self):
         """
-        Returns the preloaded Text2Image model.
-        If the model is not available, it returns None.
+        Returns the preloaded Text2Image model with lazy loading.
+        If the model is not available, it loads it on-demand.
         """
-        if 'preloadedModel' not in self.__dict__:
-            logger.error("[OpenVINO] Preloaded model is not initialized. Please check the model path and device availability.")
-            return None
-        
-        return self.preloadedModel
+        with self._model_lock:
+            requested_device = AigServerMetadata.get_t2i_model_device()
+            
+            # Load model if not loaded or device changed
+            if self.preloadedModel is None or self._model_device != requested_device:
+                if AigServerMetadata.is_device_available(requested_device):
+                    logger.info(f"[AIG] Loading Text2Image model on device: {requested_device}")
+                    try:
+                        self.preloadedModel = openvino_genai.Text2ImagePipeline(
+                            AigServerMetadata.get_t2i_model_path(), 
+                            requested_device
+                        )
+                        self._model_device = requested_device
+                        logger.info(f"[AIG] Model loaded successfully on {requested_device}")
+                    except Exception as e:
+                        logger.error(f"[AIG] Failed to load model on {requested_device}: {e}")
+                        self.preloadedModel = None
+                        self._model_device = None
+                else:
+                    logger.error(f"[AIG] Device {requested_device} is not available")
+                    self.preloadedModel = None
+            
+            return self.preloadedModel
+    
+    def unload_model(self):
+        """
+        Unload the Text2Image model from memory to free up resources.
+        """
+        with self._model_lock:
+            if self.preloadedModel is not None:
+                logger.info("[AIG] Unloading Text2Image model from memory")
+                del self.preloadedModel
+                self.preloadedModel = None
+                self._model_device = None
+                gc.collect()
+                logger.info("[AIG] Model unloaded successfully")
+            
     
     """
     Metadata for AIG Server.
@@ -150,6 +184,14 @@ class AigServerMetadata:
     def get_img_height():
         return int(os.getenv('AIG_IMG_HEIGHT_DEFAULT', 512)) # Default image height for the model   
     
+    @staticmethod
+    def should_keep_model_in_memory():
+        """
+        Check if the model should be kept in memory after first use.
+        Returns True if model should stay loaded, False to unload after each use.
+        """
+        return os.getenv('AIG_KEEP_MODEL_IN_MEMORY', 'false').lower() == 'true'
+    
 class ServerEnvironment:
     @staticmethod
     def get_dependencies() -> list[Version_sch]:
@@ -187,46 +229,80 @@ class AseServerMetadata:
     def __init__(self):
         # It avoids re-initialization of the instance for the singleton pattern
         if not hasattr(self, 'chroma_client'):
-            # Initialize the Chroma client
-            logger.warning("[ChromaDB] Initializing Chroma client with persistent storage...")
-            try:
-                self.chroma_client = chromadb.HttpClient(host=AseServerMetadata.get_ase_chromadb_host(), port=AseServerMetadata.get_ase_chromadb_port())
-            except Exception as e:
-                logger.error(f"[ChromaDB] Error initializing Chroma client({AseServerMetadata.get_ase_chromadb_host()}:{AseServerMetadata.get_ase_chromadb_port()}): {e}")
-                self.chroma_client = None
-
-            if self.chroma_client is not None:
-                local_path = os.getenv('ASE_MODEL_PATH')
-                try:
-                    local_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=local_path)
-                    logger.info(f"[ChromaDB] Embedding function initialized with model: {local_path}")
-                except Exception as e:
-                    logger.error(f"[ChromaDB] Error initializing embedding function with model '{local_path}': {e}")
-                    logger.warning("[ChromaDB] Falling back to default embedding function.")
-                    local_ef = embedding_functions.DefaultEmbeddingFunction()
-                
-                self.collection = self.chroma_client.get_or_create_collection(name=AseServerMetadata.get_ase_collection_name(), embedding_function=local_ef)
-
-                if self.collection is not None:
-                    logger.warning(f"[ChromaDB] Collection '{AseServerMetadata.get_ase_collection_name()}' created successfully.")
-                else:
-                    logger.error(f"[ChromaDB] Failed to create collection '{AseServerMetadata.get_ase_collection_name()}'.")
-
-            else:
-                logger.error("[ChromaDB] Failed to initialize Chroma client.")
-                self.collection = None
+            # Lazy initialization - client is None until first use
+            self._chroma_client = None
+            self._collection = None
+            self._embedding_function = None
+            self._chromadb_lock = threading.Lock()
             
             #Load the Default Ad image
             self.default_ad_image = None
             try:
                 self.default_ad_image=Image.open(AseServerMetadata.get_ase_default_ad_img())
             except Exception as e:
-                logger.error(f"[ChromaDB] Error loading default ad image: {e}")
+                logger.error(f"[ASE] Error loading default ad image: {e}")
                 self.default_ad_image = None
 
             self.logo = Image.open(AigServerMetadata.get_logo_path()) if AigServerMetadata.get_logo_path() else None
             
-            self.process_sample_data()  # Load sample data if they are not available
+            logger.info("[ASE] ChromaDB will be loaded on-demand (lazy loading enabled)")
+    
+    @property
+    def chroma_client(self):
+        """Lazy-load ChromaDB client on first access"""
+        if self._chroma_client is None:
+            with self._chromadb_lock:
+                if self._chroma_client is None:  # Double-check locking
+                    self._initialize_chromadb()
+        return self._chroma_client
+    
+    @property
+    def collection(self):
+        """Lazy-load collection on first access"""
+        if self._collection is None:
+            # Accessing chroma_client will trigger initialization
+            _ = self.chroma_client
+        return self._collection
+    
+    def _initialize_chromadb(self):
+        """Initialize ChromaDB client and collection (called lazily)"""
+        logger.info("[ASE] Initializing ChromaDB client with persistent storage...")
+        try:
+            self._chroma_client = chromadb.HttpClient(
+                host=AseServerMetadata.get_ase_chromadb_host(), 
+                port=AseServerMetadata.get_ase_chromadb_port()
+            )
+            logger.info(f"[ASE] ChromaDB client connected to {AseServerMetadata.get_ase_chromadb_host()}:{AseServerMetadata.get_ase_chromadb_port()}")
+        except Exception as e:
+            logger.error(f"[ASE] Error initializing ChromaDB client: {e}")
+            self._chroma_client = None
+            return
+
+        if self._chroma_client is not None:
+            local_path = os.getenv('ASE_MODEL_PATH')
+            try:
+                self._embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(model_name=local_path)
+                logger.info(f"[ASE] Embedding function initialized with model: {local_path}")
+            except Exception as e:
+                logger.error(f"[ASE] Error initializing embedding function with model '{local_path}': {e}")
+                logger.warning("[ASE] Falling back to default embedding function.")
+                self._embedding_function = embedding_functions.DefaultEmbeddingFunction()
+            
+            try:
+                self._collection = self._chroma_client.get_or_create_collection(
+                    name=AseServerMetadata.get_ase_collection_name(), 
+                    embedding_function=self._embedding_function
+                )
+                logger.info(f"[ASE] Collection '{AseServerMetadata.get_ase_collection_name()}' ready")
+            except Exception as e:
+                logger.error(f"[ASE] Failed to create collection: {e}")
+                self._collection = None
+            
+            # Load sample data after collection is ready
+            self.process_sample_data()
+        else:
+            logger.error("[ASE] Failed to initialize ChromaDB client.")
+            self._collection = None
             
     
     def chromadb_heartbeat(self):

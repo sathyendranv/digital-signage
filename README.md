@@ -111,8 +111,8 @@ rm -rf .modelenv && \
 python3 -m venv .modelenv && \
 source ./.modelenv/bin/activate && \
 pip3 install -r export-requirements.txt && \
-optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format fp16 ./models/sdxl_turbo_ov/fp16 && \
-huggingface-cli download sentence-transformers/all-MiniLM-L6-v2 --local-dir ./models/all-MiniLM-L6-v2 && \
+optimum-cli export openvino --model stabilityai/sdxl-turbo --task stable-diffusion-xl --weight-format int8 ./models/sdxl_turbo_ov/int8 && \
+huggingface-cli download sentence-transformers/all-MiniLM-L12-v2 --local-dir ./models/all-MiniLM-L12-v2 && \
 deactivate && \
 cd ../
 ```

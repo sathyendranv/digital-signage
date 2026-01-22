@@ -204,6 +204,7 @@ services:
       - ASE_ENABLE_SAMPLEDATA=${ASE_ENABLE_SAMPLEDATA} # Enable sample data for the ASE service
       - ASE_ENABLE_SAMPLEDATA_DIR=${ASE_ENABLE_SAMPLEDATA_DIR}
       - ASE_DISTANCE_MAX_THRESHOLD=${ASE_DISTANCE_MAX_THRESHOLD}
+      - AIG_KEEP_MODEL_IN_MEMORY=${AIG_KEEP_MODEL_IN_MEMORY} # Whether to keep the model in memory after first use
     depends_on:
       - ase-chromadb
     volumes:

@@ -1,5 +1,6 @@
 import io
 import os
+import gc
 #Flask API
 from flask import send_file
 from flask_restx import Namespace, Resource, fields
@@ -374,12 +375,44 @@ class ModelInference_Img(Resource):
             img_postslogan.save(img_io, format='JPEG')  # or 'PNG'
             img_io.seek(0)              
             end_time = time.time()
-            logger.info(f"Image Generation. Processed in {end_time - start_time} seconds")
+            
+            # Clean up memory - unload model if configured to do so
+            if not AigServerMetadata.should_keep_model_in_memory():
+                if pipe == AigServerMetadata().get_preloaded_model():
+                    # Only unload if using the singleton model
+                    AigServerMetadata().unload_model()
+                    logger.info(f"Image Generation. Processed in {end_time - start_time}s, model unloaded")
+                else:
+                    # Clean up temporary model instance
+                    del pipe
+                    gc.collect()
+                    logger.info(f"Image Generation. Processed in {end_time - start_time}s, temp model cleaned")
+            else:
+                logger.info(f"Image Generation. Processed in {end_time - start_time}s, model kept in memory")
+            
+            # Clean up intermediate objects
+            del image_tensor
+            del image
+            del img_postprice
+            del img_postpromo
+            del img_postframe
+            del img_postlogo
+            del img_postslogan
+            gc.collect()
+            
             #Do not incorporate ,200 at the end because it is understod as a JSON by default (and not an image stream)
             return send_file(img_io, mimetype='image/jpeg')
         except Exception as e:
             errorMessage=f"Image Generation. Exception: {str(e)}"
             logger.error(errorMessage)
+            # Clean up on error
+            if 'pipe' in locals() and pipe is not None:
+                if not AigServerMetadata.should_keep_model_in_memory():
+                    if pipe == AigServerMetadata().get_preloaded_model():
+                        AigServerMetadata().unload_model()
+                    else:
+                        del pipe
+                    gc.collect()
         
         if errorMessage is not None:           
             return errorMessage, 500

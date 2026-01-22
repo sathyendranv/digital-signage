@@ -13,7 +13,9 @@ if __name__ == '__main__':
     parser.add_argument("--port", type=int, default=os.getenv('AIG_PORT'))
     args = parser.parse_args()
 
-    aseserver = AseServerMetadata() # Initialize the ChromaDB
+    # Initialize singleton instances (but models load lazily on first use)
+    # This only initializes the metadata, not the actual heavy models
+    aseserver = AseServerMetadata()  # ChromaDB loads on first API call
     aigserver = AigServer()
 
     # Registering the clean up function    
