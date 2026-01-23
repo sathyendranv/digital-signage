@@ -260,7 +260,7 @@ For REST API docs, refer [link](https://docs.openedgeplatform.intel.com/2025.2/e
 2. Edit `pid/config.json` and update the `pipeline` string:
 
    ```json
-   "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! h264parse ! decodebin ! videoconvert ! video/x-raw,format=BGR ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination"
+   "pipeline": "rtspsrc location=\"rtsp://<USERNAME>:<PASSWORD>@<RTSP_CAMERA_IP>:<PORT>/<FEED>\" latency=100 name=source ! rtph264depay ! avdec_h264 ! videoconvert ! videoscale ! video/x-raw,format=BGR,width=1280,height=720 ! gvadetect name=detection ! queue ! gvawatermark ! gvafpscounter ! appsink name=destination"
    ```
 3. Set `RTSP_CAMERA_IP` in `.env`.
 4. Redeploy with `make down && make up`.

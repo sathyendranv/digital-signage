@@ -38,8 +38,8 @@ services:
       ENABLE_RTSP: true
       http_proxy: ${http_proxy}
       https_proxy: ${https_proxy}
-      no_proxy: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,ia-mqtt-broker
-      NO_PROXY: ${no_proxy},${HOST_IP},${RTSP_CAMERA_IP},otel-collector,mediamtx,model_registry,ia-mqtt-broker
+      no_proxy: ${no_proxy}${no_proxy:+,}${HOST_IP}${HOST_IP:+,}${RTSP_CAMERA_IP}${RTSP_CAMERA_IP:+,}otel-collector,mediamtx,model_registry,ia-mqtt-broker
+      NO_PROXY: ${no_proxy}${no_proxy:+,}${HOST_IP}${HOST_IP:+,}${RTSP_CAMERA_IP}${RTSP_CAMERA_IP:+,}otel-collector,mediamtx,model_registry,ia-mqtt-broker
       GST_DEBUG: "1"
       REST_SERVER_PORT: ${REST_SERVER_PORT}
       S3_STORAGE_HOST: ${MR_MINIO_HOSTNAME:-"minio-server"}
