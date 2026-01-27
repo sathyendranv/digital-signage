@@ -9,6 +9,9 @@ services:
     hostname: ia-mqtt-broker
     read_only: true
     container_name: ia-mqtt-broker
+    user: "1883:1883"
+    security_opt:
+      - no-new-privileges
     volumes:
       - ./pid/mosquitto/config:/mosquitto/config
     networks:
@@ -98,8 +101,9 @@ services:
     container_name: mediamtx
     restart: unless-stopped
     read_only: true
+    user: "1000:1000"
     security_opt:
-    - no-new-privileges
+      - no-new-privileges
     ports:
       - ${WHIP_SERVER_PORT}:8889   # WebRTC
     environment:
@@ -126,6 +130,9 @@ services:
     image: coturn/coturn:4.7.0
     container_name: coturn
     read_only: true
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges
     ports:
       - "${COTURN_UDP_PORT}:3478"
       - "${COTURN_UDP_PORT}:3478/udp"
@@ -137,6 +144,10 @@ services:
     image: chromadb/chroma:1.3.7
     hostname: ase-chromadb
     container_name: ase-chromadb
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges
     networks: 
       - app_network
     environment:
