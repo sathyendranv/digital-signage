@@ -74,7 +74,7 @@ cd digital-signage
 
 ### Build & Prepare Models
 
-> **NOTE:** Run all commands as a regular user (not as `sudo` user).
+> **NOTE:** Run all commands as a regular (non-root) user, without using `sudo`.
 
 #### 1. Download YOLO11s Model (for PID)
 
