@@ -1,18 +1,21 @@
-# Digital Signage: Context-Aware, Cross-Selling Approach
+# Digital Signage: Context-Aware, Cross-Selling
 
 ## Overview
-
-The **Digital Signage: Context-Aware, Cross-Selling** sample app is a fully containerized,end-to-end solution 
-for deploying intelligent digital signage.It leverages AI-based product identification, real-time video analytics, 
-and generative AI to display contextually relevant advertisements in retail or similar environments. 
-The system is modular, scalable, and designed for edge deployment.
+The Context-Aware, Cross-Selling Digital Signage application is a fully containerized, end-to-end solution from product detection to 
+dynamic advertisement generation using Intel AI and media pipelines.
+The architecture follows a microservices design pattern and enables optimized edge deployment on Intel® platforms in retail and similar environments.
 
 **Key Features:**
-- Real-time product detection and classification from video streams
-- Dynamic advertisement generation using generative AI
-- Web-based UI for monitoring and control
-- Modular microservices architecture (PID, AIG, ASe, Web UI)
-- Support for RTSP cameras and custom models (including Intel® Geti™ exports)
+- **Product Provisioning:** Configure product items with predefined advertisements, slogans, promotional offers, and pricing
+- **Context-Aware Detection:** Real-time product identification from video streams (file-based or RTSP camera input)
+- **Cross-Sell & Up-Sell Recommendations:** Intelligent suggestion logic based on detected products and contextual data
+- **Hybrid Advertisement Display:** Serves predefined ads for provisioned products or generates dynamic ads via generative AI when not provisioned
+- **Interactive Web Interface:** Live video stream visualization with near real-time advertisement rendering
+- **Containerized Deployment:** Single-node deployment via Docker Compose
+- **Intel® Optimized AI Pipeline:**
+   - DL Streamer Pipeline Server for video frames ingestion and analytics
+   - OpenVINO™ GenAI for generating the dynamic advertisement based on the detected item
+
 
 ## Minimum System Requirements
 
@@ -20,7 +23,7 @@ The system is modular, scalable, and designed for edge deployment.
 - **RAM:** 16 GB minimum (32 GB recommended)
 - **Disk:** 500 GB free space
 - **GPU:** Intel® iGPU
-- **OS:** Ubuntu 24.04 LTS (Linux x86_64)
+- **OS:** Ubuntu 24.04 LTS
 - **Docker:** Docker Engine 24.x+, Docker Compose v2
 - **Network:** Access to internet for model downloads and container pulls
 
@@ -29,7 +32,7 @@ The system is modular, scalable, and designed for edge deployment.
 The solution is composed of the following main components:
 
 1. **Product Identification (PID):**
-   - Detects and classifies products in video streams using DL Streamer Pipeline Server and YOLO models.
+   - Detects products in video streams using DL Streamer Pipeline Server and YOLO models (Can be replaced w/ Geti trained models).
    - Publishes detection results via MQTT.
 2. **Advertise Image Generator (AIG):**
    - Generates custom advertisements using generative AI (Stable Diffusion XL Turbo, MiniLM, etc.).
@@ -38,11 +41,11 @@ The solution is composed of the following main components:
    - Retrieves and ranks relevant ads based on detected products and context.
    - Uses ChromaDB for vector search.
 4. **Web UI:**
-   - Provides a browser-based interface for video, ad display, and system monitoring.
+   - Provides a browser-based interface for video and ad display.
    - Integrates with AIG and PID for real-time updates.
 
 **Supporting Services:**
-- **MediaMTX:** RTSP/WebRTC streaming relay
+- **MediaMTX:** WebRTC streaming relay
 - **Mosquitto:** MQTT broker for inter-service communication
 - **ChromaDB:** Vector database for ad search
 - **COTURN:** TURN server for WebRTC
@@ -71,7 +74,7 @@ digital-signage/
 ### Clone Source Code
 
 ```bash
-git clone https://github.com/intel-sandbox/CACS_SignageApproach.git digital-signage
+git clone https://github.com/intel-retail/digital-signage
 cd digital-signage
 ```
 
@@ -139,11 +142,12 @@ make build
 
 ### Deploy the Application
 
+
 ```bash
 make up
 ```
-
-This will validate your environment, check models, and start all containers.
+This command validates your environment configuration, verifies that required models are available, 
+removes any previously running containers, and starts all containers.
 
 ### Access the Web Interface
 
@@ -156,7 +160,6 @@ http://<HOST_IP>:5000
 You should see the live video stream and dynamic advertisements.
 
 ### Verify & Monitor
-
 Check container status:
 
 ```bash
@@ -296,7 +299,6 @@ For more on RTSP, see [RTSP protocol](https://en.wikipedia.org/wiki/Real_Time_St
 4. Redeploy the application to apply changes:
 
    ```bash
-   make down
    make up
    ```
 5. Check logs for model loading success:
