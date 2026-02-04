@@ -124,6 +124,7 @@ class Ad_Generator(threading.Thread):
         self.last_known_width = 480 # Default width until received from browser
         self.list_of_clients = []
         self.last_generated_timestamp = None
+        self.last_processed_item = []
         self.time_to_display_ad = int(os.getenv('TIME_TO_DISPLAY_AD_SECONDS', 5))
     def run(self):
         """Main thread loop to process messages from queue"""
@@ -156,17 +157,41 @@ class Ad_Generator(threading.Thread):
                 logger.error(f"Error in Ad_Generator thread: {str(e)}")
                 time.sleep(1)
 
-    def find_product_for_ad_generation(self, label_set):
+    def find_high_priced_item(self, list_of_items):
+        """Find the item with the highest price from the list"""
+        global product_associations
+        max_price = -1
+        selected_item = None
+        for item in list_of_items:
+            associations = product_associations.get(item, None)
+            if associations:
+                for assoc in associations:
+                    try:
+                        price = float(assoc['price'])
+                        if price > max_price:
+                            max_price = price
+                            selected_item = item
+                    except ValueError:
+                        continue
+        return selected_item
+
+    def find_product_for_ad_generation(self, processed_item):
         """Determine which product to generate ad for from label set"""
         # For simplicity, pick the label with highest confidence
-        highest_confidence = -1
-        selected_label = None
-        for label_dict in label_set:
-            for label, confidence in label_dict.items():
-                if confidence > highest_confidence:
-                    highest_confidence = confidence
-                    selected_label = label
-        return selected_label
+        new_identified_items = [item for item in processed_item if item not in self.last_processed_item]
+        logger.debug(f"New identified items: {new_identified_items}")  
+        old_list_high_price_item = self.find_high_priced_item(self.last_processed_item)
+        new_list_high_price_item = self.find_high_priced_item(new_identified_items)
+        logger.debug(f"high priced new item: {old_list_high_price_item}")
+        logger.debug(f"high priced new item: {new_list_high_price_item}")
+        self.last_processed_item = processed_item
+        if new_list_high_price_item:
+            logger.info(f"Selected high priced new item for ad generation: {new_list_high_price_item}")
+            return new_list_high_price_item
+        elif old_list_high_price_item:
+            logger.info(f"Selected high priced old item for ad generation: {old_list_high_price_item}")
+            return old_list_high_price_item
+        return None
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
         """
@@ -461,7 +486,8 @@ class MQTTSubscriber:
                         if data['count'] >= self.object_recency_count:
                             avg_confidence = sum(data['confidences']) / len(data['confidences'])
                             # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
-                            label_to_process.append({label: round(avg_confidence * 100, 2)})
+                            if avg_confidence >= 0.5:  # Confidence threshold
+                                label_to_process.append(label)
                     if len(label_to_process) > 0:
                         logger.debug(f"Labels to process after recency check: {label_to_process}")
                         message_queue.put(label_to_process)
