@@ -116,7 +116,6 @@ class Ad_Generator(threading.Thread):
     
     def __init__(self):
         super().__init__()
-        self.ad_generating_in_progress = False
         self.running = False
         self.last_generated_ad = None
         self.time_taken_last_generated_ad = 0
@@ -124,6 +123,8 @@ class Ad_Generator(threading.Thread):
         self.last_known_height = 600 # Default height until received from browser
         self.last_known_width = 480 # Default width until received from browser
         self.list_of_clients = []
+        self.last_generated_timestamp = None
+        self.time_to_display_ad = int(os.getenv('TIME_TO_DISPLAY_AD_SECONDS', 5))
     def run(self):
         """Main thread loop to process messages from queue"""
         self.running = True
@@ -133,20 +134,39 @@ class Ad_Generator(threading.Thread):
             try:
                 global message_queue
                 if not message_queue.empty():
-                    item = message_queue.get(timeout=1)
-                    if not self.ad_generating_in_progress:
+                    label_set = message_queue.get(timeout=1)
+                    if (self.last_generated_timestamp is None or (time.time() - self.last_generated_timestamp) > self.time_to_display_ad):
+                        item = self.find_product_for_ad_generation(label_set)
                         global product_associations
                         associations = product_associations.get(item, None)
                         # Prepare the API payload for AIG server
                         if not associations:
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
                         self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
+                        self.last_generated_timestamp = time.time()
+                    else: 
+                        logger.debug("Ad recently generated, skipping new generation to respect display duration last generated at "
+                                    f"{datetime.fromtimestamp(self.last_generated_timestamp).strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                        continue
                     message_queue.task_done()
                 else:
                     time.sleep(0.1)
             except Exception as e:
                 logger.error(f"Error in Ad_Generator thread: {str(e)}")
                 time.sleep(1)
+
+    def find_product_for_ad_generation(self, label_set):
+        """Determine which product to generate ad for from label set"""
+        # For simplicity, pick the label with highest confidence
+        highest_confidence = -1
+        selected_label = None
+        for label_dict in label_set:
+            for label, confidence in label_dict.items():
+                if confidence > highest_confidence:
+                    highest_confidence = confidence
+                    selected_label = label
+        return selected_label
                 
     def scaled(self, val, scale, min_val=None, max_val=None):
         """
@@ -436,17 +456,21 @@ class MQTTSubscriber:
                     
                     # Process labels that appear in at least N of the last X messages
                     # and haven't been processed recently
+                    label_to_process = []
                     for label, data in label_data.items():
                         if data['count'] >= self.object_recency_count:
                             avg_confidence = sum(data['confidences']) / len(data['confidences'])
-                            logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
-                            # message_queue.put(label)
-                            # self.last_processed_item = label
-                            # self.list_of_processed_products.append(label)
+                            # logger.info(f"Label '{label}' detected in {data['count']}/{len(self.last_n_messages_labels)} recent messages, avg confidence: {avg_confidence:.3f}")
+                            label_to_process.append({label: round(avg_confidence * 100, 2)})
+                    if len(label_to_process) > 0:
+                        logger.debug(f"Labels to process after recency check: {label_to_process}")
+                        message_queue.put(label_to_process)
                     
                 else:
                     logger.info("No tensor data found in gva_meta")
-                    self.last_n_messages_labels.clear()  # Clear history if no data 
+                    self.last_n_messages_labels.clear()  # Clear history if no data
+                    self.list_of_processed_products.clear()  # Clear processed products list
+                    self.last_processed_item = ""  # Reset last processed item
 
                 
             except json.JSONDecodeError:
