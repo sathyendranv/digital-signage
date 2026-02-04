@@ -145,11 +145,6 @@ class Ad_Generator(threading.Thread):
                             logger.warning(f"No associations found for product: {item}. Using default ad parameters.")
                         self.generate_advertisement(item, associations, check_predefined=True, dummy_ad=False)
                         self.last_generated_timestamp = time.time()
-                    else: 
-                        logger.debug("Ad recently generated, skipping new generation to respect display duration last generated at "
-                                    f"{datetime.fromtimestamp(self.last_generated_timestamp).strftime('%Y-%m-%d %H:%M:%S')}")
-                
-                        continue
                     message_queue.task_done()
                 else:
                     time.sleep(0.1)
