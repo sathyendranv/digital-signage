@@ -177,7 +177,7 @@ class Ad_Generator(threading.Thread):
         logger.debug(f"New identified items: {new_identified_items}")  
         old_list_high_price_item = self.find_high_priced_item(self.last_processed_item)
         new_list_high_price_item = self.find_high_priced_item(new_identified_items)
-        logger.debug(f"high priced new item: {old_list_high_price_item}")
+        logger.debug(f"high priced old item: {old_list_high_price_item}")
         logger.debug(f"high priced new item: {new_list_high_price_item}")
         self.last_processed_item = processed_item
         if new_list_high_price_item:
